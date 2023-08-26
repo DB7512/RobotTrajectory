@@ -7,6 +7,27 @@
 using namespace std;
 using namespace Eigen;
 
+struct Parameters {
+    float Ta;
+    float Tv;
+    float Td;
+    float Tj1;
+    float Tj2;
+    float q0;
+    float q1;
+    float v0;
+    float v1;
+    float vlim;
+    float amax;
+    float amin;
+    float alima;
+    float alimd;
+    float jmax;
+    float jmin;
+    Parameters() {
+        memset(this,0,sizeof(Parameters));
+    }
+};
 typedef enum {
     TraUniTra = 0,
     TriUniTra,
@@ -74,7 +95,10 @@ public:
      */
     bool LinePlanning(int peroid, PointInformation point_start, PointInformation point_end,
                       std::vector<std::vector<float> > &trajectory_point, vector<vector<float> > &trajectory_inf);
-    int TrajectoryTime(float &time, float Q, float v_0, float v_1, float vmax, float amax, float jmax, VectorXf &para);
+    bool TimePlanning(int peroid, float Q, float vmax, float amax, float jmax, float v_0, float v_1,
+                      std::vector<float> &trajectory_point, vector<vector<float> > &trajectory_inf);
+    int TrajectoryTime1(float &time, float Q, float v_0, float v_1, float vmax, float amax, float jmax, VectorXf &para);
+    int TrajectoryTime2(float &time, float Q, float v_0, float v_1, float vmax, float amax, float jmax, VectorXf &para);
     void CorrentionParameters(VectorXf& para, int peroid);
     void TrajectoryCalculation(float t, VectorXf para, float q_dq[3]);
 

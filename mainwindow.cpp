@@ -59,10 +59,10 @@ void MainWindow::on_Test_clicked()
                         QTextStream stream(&data);
                         stream<<GetTrajectoryPlanningInstance().number<<" pose "<<end_point[2]<<" v0 "<<v_0<<" v1 "<<v_1<<" vmax "<<vmax<<" a "<<amax<<"\n";
                         data.close();
-                        if(fabs(end_point[2]-50)<1e-5 && fabs(v_0-0.1)<1e-5 && fabs(v_1 - 0.3)<1e-5 && fabs(vmax - 0.4)<1e-5 && fabs(amax- 4.6)<1e-5) {
-                            int man =0;
+                        //if(GetTrajectoryPlanningInstance().number == 1202352) {
+                        if(1) {
+                            GetTrajectoryPlanningInstance().LinePlanning(100, GetTrajectoryPlanningInstance().m_posestart, GetTrajectoryPlanningInstance().m_poseend, interpolation_result, interpolation_inf);
                         }
-                        GetTrajectoryPlanningInstance().LinePlanning(100, GetTrajectoryPlanningInstance().m_posestart, GetTrajectoryPlanningInstance().m_poseend, interpolation_result, interpolation_inf);
                         amax += 0.2;
                     }
                     vmax += 0.1;
@@ -72,6 +72,54 @@ void MainWindow::on_Test_clicked()
             v_0 += 0.1;
         }
         end_point[2] += 50.0;
+    }
+    int a = 0;
+    a = 1;
+}
+
+
+void MainWindow::on_Test_2_clicked()
+{
+    float q = 0.05;
+    float jmax = 80.0;
+    vector<float>interpolation_result;//插值点
+    vector<vector<float> >interpolation_inf;
+    QFile file("data_inf.txt");
+    if(!file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) return;
+    file.close();
+    QFile data("data.txt");
+    if(!data.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) return;
+    data.close();
+    GetTrajectoryPlanningInstance().number = 0;
+    for (int var = 0; var < 20; var++) {
+        float v_0 = 0.1;
+        for (int m = 0; m < 20; m++) {
+            float v_1 = 0.1;
+            for(int i = 0; i < 40; i++) {
+                float vmax = 0.1;
+                for(int j = 0; j < 20; j++) {
+                    float amax = 0.2;
+                    for(int k = 0; k < 30; k++) {
+                        if(vmax < v_0 || vmax < v_1) break;
+                        GetTrajectoryPlanningInstance().number += 1;
+                        QFile data("data_inf.txt");
+                        if(!data.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Append)) return;
+                        QTextStream stream(&data);
+                        stream<<GetTrajectoryPlanningInstance().number<<" pose "<<q<<" v0 "<<v_0<<" v1 "<<v_1<<" vmax "<<vmax<<" a "<<amax<<"\n";
+                        data.close();
+                        //if(GetTrajectoryPlanningInstance().number == 1202352) {
+                        if(1) {
+                            GetTrajectoryPlanningInstance().TimePlanning(100, q, vmax, amax, jmax, v_0, v_1, interpolation_result, interpolation_inf);
+                        }
+                        amax += 0.2;
+                    }
+                    vmax += 0.1;
+                }
+                v_1 += 0.1;
+            }
+            v_0 += 0.1;
+        }
+        q += 0.05;
     }
     int a = 0;
     a = 1;

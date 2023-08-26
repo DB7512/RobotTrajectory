@@ -36,14 +36,11 @@ bool TrajectoryPlanning::LinePlanning(int peroid, PointInformation point_start, 
     float v_1 = point_end.v;
     //calculate time
     int ret = 0;
-    ret = TrajectoryTime(trajectory_ftime, Q, v_0, v_1, vmax, amax, jmax, para);
+    ret = TrajectoryTime2(trajectory_ftime, Q, v_0, v_1, vmax, amax, jmax, para);
     qDebug()<<"ret"<<ret<<"time"<<trajectory_ftime;
+    if(ret < 0) return -1;
     //corrent parameters
     CorrentionParameters(para, peroid);
-    //vmax = para(9);
-    //amax = para(10);
-    //jmax = para(13);
-    //ret = TrajectoryTime(trajectory_ftime, Q, v_0, v_1, vmax, amax, jmax, para);
     float temp = (para(0) + para(1) + para(2)) / (1.0 / peroid);
     interpolation_peroid_num = round(temp);
     if(para(0) + para(1) + para(2) < 1e-6) return false;
@@ -86,9 +83,47 @@ bool TrajectoryPlanning::LinePlanning(int peroid, PointInformation point_start, 
     return true;
 }
 
-int TrajectoryPlanning::TrajectoryTime(float &time, float Q, float v_0, float v_1, float vmax, float amax, float jmax, VectorXf &para)
+bool TrajectoryPlanning::TimePlanning(int peroid, float Q, float vmax, float amax, float jmax, float v_0, float v_1, std::vector<float> &trajectory_point, vector<vector<float> > &trajectory_inf)
 {
+    float trajectory_ftime = 0.0; //trajectory time
+    int interpolation_peroid_num = 0; //need period number
+    float t = 0.0; //time
+    //calculate time
+    int ret = 0;
+    ret = TrajectoryTime2(trajectory_ftime, Q, v_0, v_1, vmax, amax, jmax, para);
+    qDebug()<<"ret"<<ret<<"time"<<trajectory_ftime;
+    if(ret < 0) return -1;
+    float temp = (para(0) + para(1) + para(2)) / (1.0 / peroid);
+    interpolation_peroid_num = round(temp);
+    if(para(0) + para(1) + para(2) < 1e-6) return false;
+    float lambda[interpolation_peroid_num];//归一化参数
+    vector<float> infpoint(3);
+    float q_dq[3] = {0.0}; //resulets: displacement, velocity, acceleration
+    for (int i = 0; i < interpolation_peroid_num - 1; i++) {
+        //init vector
+        lambda[i] = 0.0;
+        t = i*(1.0/peroid);
+        //calculate trajectory
+        TrajectoryCalculation(t, para, q_dq);
+        for (int var = 0; var < 3; ++var) {
+            infpoint[var] = q_dq[var];
+        }
+        if(Q!=0)
+            lambda[i] = q_dq[0] / Q;
+        QFile data("data.txt");
+        if(!data.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Append)) return false;
+        QTextStream stream(&data);
+        stream<<number<<" "<<lambda[i]<<" "<<q_dq[0]<<" "<<q_dq[1]<<"\n";
+        data.close();
+        //        qDebug()<<lambda[i]<<q_dq[1];
+        trajectory_point.push_back(q_dq[0]);
+        trajectory_inf.push_back(infpoint);
+    }
+    return true;
+}
 
+int TrajectoryPlanning::TrajectoryTime1(float &time, float Q, float v_0, float v_1, float vmax, float amax, float jmax, VectorXf &para)
+{
     //judge whether the minimun diaplacement is satisfied
     float Tj[2] = {0.0};
     int index = 0;
@@ -278,7 +313,193 @@ int TrajectoryPlanning::TrajectoryTime(float &time, float Q, float v_0, float v_
             }
         }
     }
+    para << Ta, Tv, Td, Tj1, Tj2, 0, Q, v_0, v_1, vlim, amax, a_lima, a_limd, jmax, jmin;
+    //classification
+    if(Tv > 0.0) {
+        if(Ta > 2*Tj1) {
+            if(Td > 2*Tj2) {
+                m_trajectorytype = TraUniTra;
+            } else if(Td > 0.0) {
+                m_trajectorytype = TraUniTri;
+            } else {
+                m_trajectorytype = TraUni;
+            }
+        } else if(Ta > 0.0) {
+            if(Td > 2*Tj2) {
+                m_trajectorytype = TriUniTra;
+            } else if(Td > 0.0) {
+                m_trajectorytype = TriUniTri;
+            } else {
+                m_trajectorytype = TriUni;
+            }
+        } else {
+            if(Td > 2*Tj2) {
+                m_trajectorytype = UniTra;
+            } else if(Td > 0.0) {
+                m_trajectorytype = UniTri;
+            }else {
+                m_trajectorytype = Uni;
+            }
+        }
+    } else {
+        if(Ta > 2*Tj1) {
+            if(Td > 2*Tj2) {
+                m_trajectorytype = TraTra;
+            } else if(Td > 0.0) {
+                m_trajectorytype = TraTri;
+            } else {
+                m_trajectorytype = TraNone;
+            }
+        }else if(Ta > 0.0) {
+            if(Td > 2*Tj2) {
+                m_trajectorytype = TriTra;
+            } else if(Td > 0.0) {
+                m_trajectorytype = TriTri;
+            } else {
+                m_trajectorytype = TriNone;
+            }
+        } else {
+            if(Td > 2*Tj2) {
+                m_trajectorytype = NoneTra;
+            } else if(Td > 0.0) {
+                m_trajectorytype = NoneTri;
+            } else {
+                return -2;
+            }
+        }
+    }
+    return 1;
+}
 
+int TrajectoryPlanning::TrajectoryTime2(float &time, float Q, float v_0, float v_1, float vmax, float amax, float jmax, VectorXf &para)
+{
+    //judge whether the minimun diaplacement is satisfied
+    float Tj[2] = {0.0};
+    int index = 0;
+    Tj[0] = sqrt(fabs(v_1 - v_0)/jmax);
+    Tj[1] = amax/jmax;
+    if(Tj[0] > Tj[1]) {
+        index = 1;
+    }else {
+        index = 0;
+    }
+    if(index == 0) {
+        if(Q < Tj[index] * (v_0 + v_1)) {
+            return -1;
+        }
+    }else {
+        if(Q < 0.5 * (v_0 + v_1) * (Tj[index] + fabs(v_1 - v_0)/amax)) {
+            return -1;
+        }
+    }
+    float Tj1 = 0.0, Tj2 = 0.0, Ta = 0.0, Td = 0.0, Tv = 0.0;
+    float a_lima = 0.0, a_limd = 0.0;
+    float vlim = 0.0;
+    float jmin = -jmax;
+    //amax is not reached
+    if ((vmax - v_0) * jmax < pow(amax, 2)) {
+        Tj1 = sqrt((vmax - v_0) / jmax);
+        Ta = 2 * Tj1;
+        a_lima = jmax * Tj1;
+    } else {
+        Tj1 = amax / jmax;
+        Ta = Tj1 + (vmax - v_0) / amax;
+        a_lima = amax;
+    }
+    //amin is not reached
+    if ((vmax - v_1) * jmax < pow(amax, 2)) {
+        Tj2 = sqrt((vmax - v_1) / jmax);
+        Td = 2 * Tj2;
+        a_limd = -jmax * Tj2;
+    } else {
+        Tj2 = amax / jmax;
+        Td = Tj2 + (vmax - v_1) / amax;
+        a_limd = -amax;
+    }
+    Tv = (Q) / vmax - (Ta / 2) * (1 + v_0 / vmax) - (Td / 2) * (1 + v_1 / vmax);
+    float lambda = 0.9;
+    float delta;
+    //vmax is reached
+    if (Tv > 0) {
+        vlim = vmax;
+        time = Ta + Tv + Td;
+    } else {
+        Tv = 0.0;
+        delta = 0.0;
+        Tj1 = amax / jmax;
+        Tj2 = amax / jmax;
+        delta = (pow(amax, 4) / pow(jmax, 2)) + 2 * (pow(v_0, 2) + pow(v_1, 2)) + amax * (4 * Q - 2 * (amax / jmax) * (v_0 + v_1));
+        Ta = ((pow(amax, 2) / jmax) - 2.0 * v_0 + sqrt(delta)) / (2.0 * amax);
+        Td = ((pow(amax, 2) / jmax) - 2.0 * v_1 + sqrt(delta)) / (2.0 * amax);
+        if (Ta < 0 || Td < 0) {
+            if (Ta < 0) {
+                Ta = 0.0;
+                Tj1 = 0.0;
+                Td = 2.0 * Q / (v_0 + v_1);
+                Tj2 = (jmax * Q - sqrt(jmax * (jmax * pow(Q, 2) + pow(v_1 + v_0, 2) * (v_1 - v_0)))) / (jmax * (v_1 + v_0));
+                a_lima = 0;
+                a_limd = -jmax * Tj2;
+                vlim = v_0;
+                time = Ta + Tv + Td;
+            } else if (Td < 0) {
+                Td = 0.0;
+                Tj2 = 0.0;
+                Ta = 2.0 * Q / (v_0 + v_1);
+                Tj1 = (jmax * Q - sqrt(jmax * (jmax * pow(Q, 2)) - pow(v_1 + v_0, 2) * (v_1 - v_0))) / (jmax * (v_1 + v_0));
+                a_lima = jmax * Tj1;
+                a_limd = 0.0;
+                vlim = v_1;
+                //vlim = v_0 + a_lima * (Ta - Tj1);
+                time = Ta + Tv + Td;
+            }
+        } else if (Ta >= 2 * Tj1 && Td >= 2 * Tj2) {
+            a_lima = amax;
+            a_limd = -amax;
+            vlim = v_0 + a_lima * (Ta - Tj1);
+            time = Ta + Tv + Td;
+        } else {
+            while(Ta < 2 * amax / jmax || Td < 2 * amax / jmax) {
+                amax = lambda*amax;
+                Tv = 0.0;
+                delta = 0.0;
+                Tj1 = amax / jmax;
+                Tj2 = amax / jmax;
+                delta = (pow(amax, 4) / pow(jmax, 2)) + 2 * (pow(v_0, 2) + pow(v_1, 2)) + amax * (4 * Q - 2 * (amax / jmax) * (v_0 + v_1));
+                Ta = ((pow(amax, 2) / jmax) - 2.0 * v_0 + sqrt(delta)) / (2.0 * amax);
+                Td = ((pow(amax, 2) / jmax) - 2.0 * v_1 + sqrt(delta)) / (2.0 * amax);
+                if (Ta < 0 || Td < 0) {
+                    if (Ta < 0) {
+                        Ta = 0.0;
+                        Tj1 = 0.0;
+                        Td = 2.0 * Q / (v_0 + v_1);
+                        Tj2 = (jmax * Q - sqrt(jmax * (jmax * pow(Q, 2) + pow(v_1 + v_0, 2) * (v_1 - v_0)))) / (jmax * (v_1 + v_0));
+                        a_lima = 0;
+                        a_limd = -jmax * Tj2;
+                        vlim = v_0;
+                        time = Ta + Tv + Td;
+                        break;
+                    } else if (Td < 0) {
+                        Td = 0.0;
+                        Tj2 = 0.0;
+                        Ta = 2.0 * Q / (v_0 + v_1);
+                        Tj1 = (jmax * Q - sqrt(jmax * (jmax * pow(Q, 2)) - pow(v_1 + v_0, 2) * (v_1 - v_0))) / (jmax * (v_1 + v_0));
+                        a_lima = jmax * Tj1;
+                        a_limd = 0.0;
+                        vlim = v_1;
+                        //vlim = v_0 + a_lima * (Ta - Tj1);
+                        time = Ta + Tv + Td;
+                        break;
+                    }
+                } else if (Ta >= 2 * Tj1 && Td >= 2 * Tj2) {
+                    a_lima = amax;
+                    a_limd = -amax;
+                    vlim = v_0 + a_lima * (Ta - Tj1);
+                    time = Ta + Tv + Td;
+                    break;
+                }
+            }
+        }
+    }
     para << Ta, Tv, Td, Tj1, Tj2, 0, Q, v_0, v_1, vlim, amax, a_lima, a_limd, jmax, jmin;
     //classification
     if(Tv > 0.0) {
@@ -358,15 +579,19 @@ void TrajectoryPlanning::CorrentionParameters(VectorXf &para, int peroid)
     float Tj1_new = Tj1, Tj2_new = Tj2, Ta_new = Ta, Td_new = Td, Tv_new = Tv;
     float deltat_T = 0.0;
     if(m_trajectorytype == TraUniTra || m_trajectorytype == TriUniTri) {
-        if(v_1 > v_0) { //extend the acceleration time
+        if((v_1 - v_0) > 1e-5) { //extend the acceleration time
             deltat_T    = Te * (vlim + v_0) / (vlim - v_0);
             Tv_new      = Tv - deltat_T;
+            if(Tv_new < -1e-5) {
+                Tv_new = 0.0;
+                deltat_T = Tv;
+            }zhouqi
             Ta_new      = Ta + Te + deltat_T;
             Tj1_new     = Tj1 + 0.5 * (Te + deltat_T);
             jmax        = (vlim - v_0) / ((Ta_new - Tj1_new) * Tj1_new);
             alima       = Tj1_new * jmax;
             vlim        = alima * (Ta_new - Tj1_new) + v_0;
-        } else if(v_1 < v_0) { //extend the deceleration time
+        } else if((v_1 - v_0) < -1e-5) { //extend the deceleration time
             deltat_T    = Te * (vlim + v_1) / (vlim - v_1);
             Tv_new      = Tv - deltat_T;
             Td_new      = Td + Te + deltat_T;
@@ -388,16 +613,20 @@ void TrajectoryPlanning::CorrentionParameters(VectorXf &para, int peroid)
             vlim        = alima * (Ta_new - Tj1_new) + v_0;
         }
     } else if(m_trajectorytype == TriUniTra || m_trajectorytype == UniTra
-             || m_trajectorytype == UniTri) { //extend the deceleration time
+               || m_trajectorytype == UniTri) { //extend the deceleration time
         deltat_T    = Te * (vlim + v_1) / (vlim - v_1);
         Tv_new      = Tv - deltat_T;
+        if(Tv_new < -1e-5) {
+            Tv_new = 0.0;
+            deltat_T = Tv;
+        }
         Td_new      = Td + Te + deltat_T;
         Tj2_new     = Tj2 + 0.5 * (Te + deltat_T);
         jmin        = (v_1 - vlim) / ((Td_new - Tj2_new) * Tj2_new);
         alimd       = Tj2_new * jmin;
         vlim        = v_1 - alimd*(Td_new - Tj2_new);
     } else if(m_trajectorytype == TraUniTri || m_trajectorytype == TraUni
-             || m_trajectorytype == TriUni) { //extend the acceleration time
+               || m_trajectorytype == TriUni) { //extend the acceleration time
         deltat_T    = Te * (vlim + v_0) / (vlim - v_0);
         Tv_new      = Tv - deltat_T;
         Ta_new      = Ta + Te + deltat_T;
@@ -441,6 +670,9 @@ void TrajectoryPlanning::CorrentionParameters(VectorXf &para, int peroid)
         vlim        = v_1 - alimd*(Td_new - Tj2_new);
     }
     para = VectorXf::Zero(15);
+    if(Tv_new < -1e-5) {
+        int mannn = 0;
+    }
     para << Ta_new, Tv_new, Td_new, Tj1_new, Tj2_new, 0, Q, v_0, v_1, vlim, amax, alima, alimd, jmax, jmin;
 }
 

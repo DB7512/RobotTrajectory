@@ -18,6 +18,8 @@ public:
 private slots:
     void on_Test_clicked();
 
+    void on_Test_2_clicked();
+
 private:
     Ui::MainWindow *ui;
 };
