@@ -59,7 +59,7 @@ void MainWindow::on_Test_clicked()
                         QTextStream stream(&data);
                         stream<<GetTrajectoryPlanningInstance().number<<" pose "<<end_point[2]<<" v0 "<<v_0<<" v1 "<<v_1<<" vmax "<<vmax<<" a "<<amax<<"\n";
                         data.close();
-                        //if(GetTrajectoryPlanningInstance().number == 1202352) {
+//                        if(GetTrajectoryPlanningInstance().number == 39271) {
                         if(1) {
                             GetTrajectoryPlanningInstance().LinePlanning(100, GetTrajectoryPlanningInstance().m_posestart, GetTrajectoryPlanningInstance().m_poseend, interpolation_result, interpolation_inf);
                         }
@@ -107,8 +107,8 @@ void MainWindow::on_Test_2_clicked()
                         QTextStream stream(&data);
                         stream<<GetTrajectoryPlanningInstance().number<<" pose "<<q<<" v0 "<<v_0<<" v1 "<<v_1<<" vmax "<<vmax<<" a "<<amax<<"\n";
                         data.close();
-                        //if(GetTrajectoryPlanningInstance().number == 1202352) {
-                        if(1) {
+                        if(GetTrajectoryPlanningInstance().number == 32270) {
+//                        if(1) {
                             GetTrajectoryPlanningInstance().TimePlanning(100, q, vmax, amax, jmax, v_0, v_1, interpolation_result, interpolation_inf);
                         }
                         amax += 0.2;

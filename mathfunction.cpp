@@ -142,3 +142,11 @@ void MathFunction::Equation_Root5(float coffe[6], float Roots_result[5][2])
         }
     }
 }
+
+void MathFunction::SwapValue(float &val1, float &val2)
+{
+    float temp = 0.0;
+    temp = val1;
+    val1 = val2;
+    val2 = temp;
+}

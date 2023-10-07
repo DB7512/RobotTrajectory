@@ -15,6 +15,7 @@ public:
     void Equation_Root3(float coffe[4], float Roots_result[3]);
     void Equation_Root4(float coffe[5], float Roots_result[4][2]);
     void Equation_Root5(float coffe[6], float Roots_result[5][2]);
+    void SwapValue(float &val1, float &val2);
 
 
 signals:
