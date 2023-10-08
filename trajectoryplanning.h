@@ -104,12 +104,12 @@ typedef struct _PathInformation {
 //    vector<vector<double> > TrajectoryInterpolation;
 //    vector<vector<double> > TrajectoryVelocity;
 //    vector<vector<double> > TrajectoryAcceleration;
-    _TrajectoryInformation() {
+//    _TrajectoryInformation() {
 //        memset(this,0,sizeof(_TrajectoryInformation));
-        constraints = VectorXd::Zero(16);
-        maxJerk = 80;
-        pathType = None;
-    }
+//        constraints = VectorXd::Zero(16);
+//        maxJerk = 80;
+//        pathType = None;
+//    }
 }PathInformation;
 
 class TrajectoryPlanning : public QObject
@@ -142,18 +142,18 @@ public:
     void TrajectoryCalculationD(double t, VectorXd para, double q_dq[3]);
 
     void Movep(vector<PointInformation> waypoints, vector<PathInformation> &pathes);
-    void CompoundTrajectory(vector<PointInformation> waypoints, vector<PathInformation> &path);
+    void CompoundTrajectory(vector<PointInformation> &waypoints, vector<PathInformation> &path);
     void CalculatePathParameters(PathInformation path);
     int TrajectoryTime(AccelerationType &accelerationtype, double &time, double Q, double v_0, double v_1, double vmax, double amax, double jmax, VectorXd &para);
     void CorrentionParameters(AccelerationType accelerationtype, VectorXd &para, int peroid);
     void TrajectoryCalculation(double t, VectorXd para, double q_dq[3]);
     void ArcSegmentLineToLine(PointInformation &startpoint, PointInformation &intermediatepoint, PointInformation &endpoint, PathInformation &arcpath);
     void CalculateArcParameterLineToLine(Vector3d intermediate2start, Vector3d intermediate2end, double &radius, Vector3d intermediatepoint, PathInformation ArcSegment);
-    void ArcSegmentforLinetoLine(vector<PointInformation> waypoints, vector<PathInformation> pathes);
     void SetLinePathSegment(PathInformation &path, PointInformation startpoint, PointInformation endpoint, PathInformation arcpath);
     void SetCricularPathSegment(PathInformation &path, PointInformation startpoint, PointInformation endpoint, PointInformation middlepoint, Vector3d center, double r, double theta);
     void SetArcPathSegment(PathInformation &path, PointInformation intermediatepoint, Vector3d arcstart, Vector3d arcend, Vector3d arccenter, double radius, double theta);
 
+    double GetRand(double min, double max);
 
 signals:
 
@@ -168,7 +168,7 @@ public:
     vector<double> m_maxVelocity;
     vector<double> m_maxAcceleration;
     vector<PathInformation> m_pathsegments;
-    VectorXd m_parameters = VectorXd::Zero(16);
+    VectorXf m_parameters = VectorXf::Zero(15);
 };
 
 static TrajectoryPlanning& GetTrajectoryPlanningInstance()

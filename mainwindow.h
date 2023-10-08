@@ -14,7 +14,9 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-
+    void TestTimeCalculation();
+    void TestInterpolationCalculation();
+    void TestMovep();
 private slots:
     void on_Test_clicked();
 

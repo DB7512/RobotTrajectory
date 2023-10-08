@@ -1,6 +1,12 @@
 #include "mathfunction.h"
 #include <math.h>
 #include <eigen-3.4.0/Eigen/Geometry>
+#include <random>
+#include <unistd.h>
+#include <iostream>
+#include <QTime>
+#include <QCoreApplication>
+
 MathFunction::MathFunction(QObject *parent)
     : QObject{parent}
 {
@@ -149,4 +155,21 @@ void MathFunction::SwapValue(float &val1, float &val2)
     temp = val1;
     val1 = val2;
     val2 = temp;
+}
+
+double MathFunction::GetRand(double min, double max)
+{
+    default_random_engine e;
+    //uniform_real_distribution:产生均匀分布的实数
+    uniform_real_distribution<double> u(min,max);   //左闭右闭区间
+    e.seed(time(0));
+    DelayMS(5);
+    return u(e);
+}
+
+void MathFunction::DelayMS(unsigned int msec)
+{
+    QTime _Timer = QTime::currentTime().addMSecs(msec);
+    while(QTime::currentTime() < _Timer)
+        QCoreApplication::processEvents(QEventLoop::AllEvents,100);
 }

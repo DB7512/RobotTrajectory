@@ -4,6 +4,11 @@
 #include <QFile>
 #include <QDebug>
 #include "cmath"
+#include <algorithm>
+#include <ctime>
+#include <random>
+#include <unistd.h>
+#include <iostream>
 
 TrajectoryPlanning::TrajectoryPlanning(QObject *parent)
     : QObject{parent}
@@ -30,21 +35,21 @@ bool TrajectoryPlanning::LinePlanning(int peroid, PointInformation point_start, 
     float detla_z = pose_end[2] - pose_start[2]; //displacemengt in z-axis
     Q = sqrt(pow(detla_x,2) + pow(detla_y,2) + pow(detla_z,2))/1000.0;
     //constraint
-    float vmax = point_end.vmax;
-    float amax = point_end.amax;
-    float jmax = point_end.jmax;
-    float v_0 = point_start.v;
-    float v_1 = point_end.v;
+    float vmax = point_end.maxVelocity;
+    float amax = point_end.maxAcceleration;
+    float jmax = point_end.maxJerk;
+    float v_0 = point_start.velocity;
+    float v_1 = point_end.velocity;
     //calculate time
     int ret = 0;
-    ret = TrajectoryTime4(trajectory_ftime, Q, v_0, v_1, vmax, amax, jmax, para);
+    ret = TrajectoryTime4(trajectory_ftime, Q, v_0, v_1, vmax, amax, jmax, m_parameters);
     qDebug()<<"ret"<<ret<<"time"<<trajectory_ftime;
     if(ret < 0) return -1;
     //corrent parameters
-    CorrentionParameters(para, peroid);
-    float temp = (para(0) + para(1) + para(2)) / (1.0 / peroid);
+    CorrentionParameters(m_parameters, peroid);
+    float temp = (m_parameters(0) + m_parameters(1) + m_parameters(2)) / (1.0 / peroid);
     interpolation_peroid_num = round(temp);
-    if(para(0) + para(1) + para(2) < 1e-6) return false;
+    if(m_parameters(0) + m_parameters(1) + m_parameters(2) < 1e-6) return false;
     float lambda[interpolation_peroid_num];//归一化参数
     vector<float> interpolation_point(6);//插值结果
     vector<float> infpoint(3);
@@ -62,7 +67,7 @@ bool TrajectoryPlanning::LinePlanning(int peroid, PointInformation point_start, 
         lambda[i] = 0.0;
         t = i*(1.0/peroid);
         //calculate trajectory
-        TrajectoryCalculation(t, para, q_dq);
+        TrajectoryCalculation(t, m_parameters, q_dq);
         for (int var = 0; var < 3; ++var) {
             infpoint[var] = q_dq[var];
         }
@@ -86,27 +91,27 @@ bool TrajectoryPlanning::LinePlanning(int peroid, PointInformation point_start, 
 
 bool TrajectoryPlanning::TimePlanning(int peroid, float Q, float vmax, float amax, float jmax, float v_0, float v_1, std::vector<float> &trajectory_point, vector<vector<float> > &trajectory_inf)
 {
-//    float trajectory_ftime = 0.0; //trajectory time
-    double trajectory_ftime = 0.0; //trajectory time
+    float trajectory_ftime = 0.0; //trajectory time
+//    double trajectory_ftime = 0.0; //trajectory time
     int interpolation_peroid_num = 0; //need period number
     float t = 0.0; //time
     //calculate time
     int ret = 0;
-    ret = TrajectoryTime5(trajectory_ftime, Q, v_0, v_1, vmax, amax, jmax, parad);
+    ret = TrajectoryTime4(trajectory_ftime, Q, v_0, v_1, vmax, amax, jmax, m_parameters);
     qDebug()<<"ret"<<ret<<"time"<<trajectory_ftime;
     if(ret < 0) return -1;
-    double temp = (parad(0) + parad(1) + parad(2)) / (1.0 / peroid);
+    double temp = (m_parameters(0) + m_parameters(1) + m_parameters(2)) / (1.0 / peroid);
     interpolation_peroid_num = round(temp);
-    if(parad(0) + parad(1) + parad(2) < 1e-6) return false;
+    if(m_parameters(0) + m_parameters(1) + m_parameters(2) < 1e-6) return false;
     double lambda[interpolation_peroid_num];//归一化参数
     vector<float> infpoint(3);
-    double q_dq[3] = {0.0}; //resulets: displacement, velocity, acceleration
+    float q_dq[3] = {0.0}; //resulets: displacement, velocity, acceleration
     for (int i = 0; i < interpolation_peroid_num - 1; i++) {
         //init vector
         lambda[i] = 0.0;
         t = i*(1.0/peroid);
         //calculate trajectory
-        TrajectoryCalculationD(t, parad, q_dq);
+        TrajectoryCalculation(t, m_parameters, q_dq);
         for (int var = 0; var < 3; ++var) {
             infpoint[var] = q_dq[var];
         }
@@ -324,51 +329,51 @@ int TrajectoryPlanning::TrajectoryTime1(float &time, float Q, float v_0, float v
     if(Tv > 0.0) {
         if(Ta > 2*Tj1) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TraUniTra;
+                m_accelerationtype = TraZeroTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TraUniTri;
+                m_accelerationtype = TraZeroTri;
             } else {
-                m_trajectorytype = TraUni;
+                m_accelerationtype = TraZero;
             }
         } else if(Ta > 0.0) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TriUniTra;
+                m_accelerationtype = TriZeroTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TriUniTri;
+                m_accelerationtype = TriZeroTri;
             } else {
-                m_trajectorytype = TriUni;
+                m_accelerationtype = TriZero;
             }
         } else {
             if(Td > 2*Tj2) {
-                m_trajectorytype = UniTra;
+                m_accelerationtype = ZeroTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = UniTri;
+                m_accelerationtype = ZeroTri;
             }else {
-                m_trajectorytype = Uni;
+                m_accelerationtype = Zero;
             }
         }
     } else {
         if(Ta > 2*Tj1) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TraTra;
+                m_accelerationtype = TraTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TraTri;
+                m_accelerationtype = TraTri;
             } else {
-                m_trajectorytype = TraNone;
+                m_accelerationtype = TraNone;
             }
         }else if(Ta > 0.0) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TriTra;
+                m_accelerationtype = TriTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TriTri;
+                m_accelerationtype = TriTri;
             } else {
-                m_trajectorytype = TriNone;
+                m_accelerationtype = TriNone;
             }
         } else {
             if(Td > 2*Tj2) {
-                m_trajectorytype = NoneTra;
+                m_accelerationtype = NoneTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = NoneTri;
+                m_accelerationtype = NoneTri;
             } else {
                 return -2;
             }
@@ -511,51 +516,51 @@ int TrajectoryPlanning::TrajectoryTime2(float &time, float Q, float v_0, float v
     if(Tv > 0.0) {
         if(Ta > 2*Tj1) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TraUniTra;
+                m_accelerationtype = TraZeroTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TraUniTri;
+                m_accelerationtype = TraZeroTri;
             } else {
-                m_trajectorytype = TraUni;
+                m_accelerationtype = TraZero;
             }
         } else if(Ta > 0.0) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TriUniTra;
+                m_accelerationtype = TriZeroTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TriUniTri;
+                m_accelerationtype = TriZeroTri;
             } else {
-                m_trajectorytype = TriUni;
+                m_accelerationtype = TriZero;
             }
         } else {
             if(Td > 2*Tj2) {
-                m_trajectorytype = UniTra;
+                m_accelerationtype = ZeroTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = UniTri;
+                m_accelerationtype = ZeroTri;
             }else {
-                m_trajectorytype = Uni;
+                m_accelerationtype = Zero;
             }
         }
     } else {
         if(Ta > 2*Tj1) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TraTra;
+                m_accelerationtype = TraTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TraTri;
+                m_accelerationtype = TraTri;
             } else {
-                m_trajectorytype = TraNone;
+                m_accelerationtype = TraNone;
             }
         }else if(Ta > 0.0) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TriTra;
+                m_accelerationtype = TriTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TriTri;
+                m_accelerationtype = TriTri;
             } else {
-                m_trajectorytype = TriNone;
+                m_accelerationtype = TriNone;
             }
         } else {
             if(Td > 2*Tj2) {
-                m_trajectorytype = NoneTra;
+                m_accelerationtype = NoneTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = NoneTri;
+                m_accelerationtype = NoneTri;
             } else {
                 return -2;
             }
@@ -899,51 +904,51 @@ int TrajectoryPlanning::TrajectoryTime3(float &time, float Q, float v_0, float v
     if(Tv > 0.0) {
         if(Ta > 2*Tj1) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TraUniTra;
+                m_accelerationtype = TraZeroTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TraUniTri;
+                m_accelerationtype = TraZeroTri;
             } else {
-                m_trajectorytype = TraUni;
+                m_accelerationtype = TraZero;
             }
         } else if(Ta > 0.0) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TriUniTra;
+                m_accelerationtype = TriZeroTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TriUniTri;
+                m_accelerationtype = TriZeroTri;
             } else {
-                m_trajectorytype = TriUni;
+                m_accelerationtype = TriZero;
             }
         } else {
             if(Td > 2*Tj2) {
-                m_trajectorytype = UniTra;
+                m_accelerationtype = ZeroTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = UniTri;
+                m_accelerationtype = ZeroTri;
             }else {
-                m_trajectorytype = Uni;
+                m_accelerationtype = Zero;
             }
         }
     } else {
         if(Ta > 2*Tj1) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TraTra;
+                m_accelerationtype = TraTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TraTri;
+                m_accelerationtype = TraTri;
             } else {
-                m_trajectorytype = TraNone;
+                m_accelerationtype = TraNone;
             }
         }else if(Ta > 0.0) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TriTra;
+                m_accelerationtype = TriTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TriTri;
+                m_accelerationtype = TriTri;
             } else {
-                m_trajectorytype = TriNone;
+                m_accelerationtype = TriNone;
             }
         } else {
             if(Td > 2*Tj2) {
-                m_trajectorytype = NoneTra;
+                m_accelerationtype = NoneTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = NoneTri;
+                m_accelerationtype = NoneTri;
             } else {
                 return -2;
             }
@@ -1088,51 +1093,51 @@ int TrajectoryPlanning::TrajectoryTime4(float &time, float Q, float v_0, float v
     if(Tv > 0.0) {
         if(Ta > 2*Tj1) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TraUniTra;
+                m_accelerationtype = TraZeroTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TraUniTri;
+                m_accelerationtype = TraZeroTri;
             } else {
-                m_trajectorytype = TraUni;
+                m_accelerationtype = TraZero;
             }
         } else if(Ta > 0.0) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TriUniTra;
+                m_accelerationtype = TriZeroTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TriUniTri;
+                m_accelerationtype = TriZeroTri;
             } else {
-                m_trajectorytype = TriUni;
+                m_accelerationtype = TriZero;
             }
         } else {
             if(Td > 2*Tj2) {
-                m_trajectorytype = UniTra;
+                m_accelerationtype = ZeroTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = UniTri;
+                m_accelerationtype = ZeroTri;
             }else {
-                m_trajectorytype = Uni;
+                m_accelerationtype = Zero;
             }
         }
     } else {
         if(Ta > 2*Tj1) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TraTra;
+                m_accelerationtype = TraTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TraTri;
+                m_accelerationtype = TraTri;
             } else {
-                m_trajectorytype = TraNone;
+                m_accelerationtype = TraNone;
             }
         }else if(Ta > 0.0) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TriTra;
+                m_accelerationtype = TriTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TriTri;
+                m_accelerationtype = TriTri;
             } else {
-                m_trajectorytype = TriNone;
+                m_accelerationtype = TriNone;
             }
         } else {
             if(Td > 2*Tj2) {
-                m_trajectorytype = NoneTra;
+                m_accelerationtype = NoneTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = NoneTri;
+                m_accelerationtype = NoneTri;
             } else {
                 return -2;
             }
@@ -1277,51 +1282,51 @@ int TrajectoryPlanning::TrajectoryTime5(double &time, float Q, float v_0, float 
     if(Tv > 0.0) {
         if(Ta > 2*Tj1) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TraUniTra;
+                m_accelerationtype = TraZeroTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TraUniTri;
+                m_accelerationtype = TraZeroTri;
             } else {
-                m_trajectorytype = TraUni;
+                m_accelerationtype = TraZero;
             }
         } else if(Ta > 0.0) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TriUniTra;
+                m_accelerationtype = TriZeroTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TriUniTri;
+                m_accelerationtype = TriZeroTri;
             } else {
-                m_trajectorytype = TriUni;
+                m_accelerationtype = TriZero;
             }
         } else {
             if(Td > 2*Tj2) {
-                m_trajectorytype = UniTra;
+                m_accelerationtype = ZeroTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = UniTri;
+                m_accelerationtype = ZeroTri;
             }else {
-                m_trajectorytype = Uni;
+                m_accelerationtype = Zero;
             }
         }
     } else {
         if(Ta > 2*Tj1) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TraTra;
+                m_accelerationtype = TraTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TraTri;
+                m_accelerationtype = TraTri;
             } else {
-                m_trajectorytype = TraNone;
+                m_accelerationtype = TraNone;
             }
         }else if(Ta > 0.0) {
             if(Td > 2*Tj2) {
-                m_trajectorytype = TriTra;
+                m_accelerationtype = TriTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = TriTri;
+                m_accelerationtype = TriTri;
             } else {
-                m_trajectorytype = TriNone;
+                m_accelerationtype = TriNone;
             }
         } else {
             if(Td > 2*Tj2) {
-                m_trajectorytype = NoneTra;
+                m_accelerationtype = NoneTra;
             } else if(Td > 0.0) {
-                m_trajectorytype = NoneTri;
+                m_accelerationtype = NoneTri;
             } else {
                 return -2;
             }
@@ -1351,7 +1356,7 @@ void TrajectoryPlanning::CorrentionParameters(VectorXf &para, int peroid)
     float Tj1_new = Tj1, Tj2_new = Tj2, Ta_new = Ta, Td_new = Td, Tv_new = Tv;
     float delta_T = 0.0;
     float Tm = Te + Ta + Tv + Td;
-    if(m_trajectorytype == TraUniTra || m_trajectorytype == TriUniTri) {
+    if(m_trajectorytype == TraZeroTra || m_trajectorytype == TriZeroTri) {
         if((v_1 - v_0) > 1e-5) { //extend the acceleration time
             delta_T    = Te * (vlim + v_0) / (vlim - v_0);
             Tv_new      = Tv - delta_T;
@@ -1419,12 +1424,12 @@ void TrajectoryPlanning::CorrentionParameters(VectorXf &para, int peroid)
                 vlim        = alima * (Ta_new - Tj1_new) + v_0;
             }
         }
-    } else if(m_trajectorytype == TriUniTra || m_trajectorytype == UniTra
-               || m_trajectorytype == UniTri) { //extend the deceleration time
+    } else if(m_trajectorytype == TriZeroTra || m_trajectorytype == ZeroTra
+               || m_trajectorytype == ZeroTri) { //extend the deceleration time
         delta_T    = Te * (vlim + v_1) / (vlim - v_1);
         Tv_new      = Tv - delta_T;
         if(Tv_new < -1e-5) {
-            if(m_trajectorytype == TriUniTra) {
+            if(m_trajectorytype == TriZeroTra) {
                 //decrease vlim
                 Tv_new  = Tv;
                 Td_new  = Td + Te;
@@ -1451,12 +1456,12 @@ void TrajectoryPlanning::CorrentionParameters(VectorXf &para, int peroid)
             alimd       = Tj2_new * jmin;
             vlim        = v_1 - alimd*(Td_new - Tj2_new);
         }
-    } else if(m_trajectorytype == TraUniTri || m_trajectorytype == TraUni
-               || m_trajectorytype == TriUni) { //extend the acceleration time
+    } else if(m_trajectorytype == TraZeroTri || m_trajectorytype == TraZero
+               || m_trajectorytype == TriZero) { //extend the acceleration time
         delta_T    = Te * (vlim + v_0) / (vlim - v_0);
         Tv_new      = Tv - delta_T;
         if(Tv_new < -1e-5) {
-            if(m_trajectorytype == TraUniTri) {
+            if(m_trajectorytype == TraZeroTri) {
                 //decrease vlim
                 Tv_new  = Tv;
                 Ta_new  = Ta + Te;
@@ -1485,7 +1490,7 @@ void TrajectoryPlanning::CorrentionParameters(VectorXf &para, int peroid)
             alima       = Tj1_new * jmax;
             vlim        = alima * (Ta_new - Tj1_new) + v_0;
         }
-    } else if(m_trajectorytype == Uni){
+    } else if(m_trajectorytype == Zero){
         //decrease v_0 and v_1
         Td_new = cbrt(8*(Tv * vlim - (Tv + Te)*vlim) / jmin);
         Tv_new = Tv - Td_new;
@@ -1724,8 +1729,9 @@ void TrajectoryPlanning::Movep(vector<PointInformation> waypoints, vector<PathIn
                 if(path1 != temppath.end()) {
                     path2++;
                 } else {
-                    CalculatePathParameters(path1);
-                    pathes.push_back(path1);
+                    finalpath = *path1;
+                    CalculatePathParameters(finalpath);
+                    pathes.push_back(finalpath);
                     return;
                 }
             }
@@ -1733,7 +1739,7 @@ void TrajectoryPlanning::Movep(vector<PointInformation> waypoints, vector<PathIn
     }
 }
 
-void TrajectoryPlanning::CompoundTrajectory(vector<PointInformation> waypoints, vector<PathInformation> &path)
+void TrajectoryPlanning::CompoundTrajectory(vector<PointInformation> &waypoints, vector<PathInformation> &path)
 {
     if(waypoints.size() < 2)
         return;
@@ -1781,7 +1787,7 @@ void TrajectoryPlanning::CalculatePathParameters(PathInformation path)
     }
     TrajectoryTime(path.accelerationType, time, Q, path.startpoint.velocity, path.endpoint.velocity, path.maxVelocity, path.maxAcceleration, path.maxJerk, path.constraints);
     //添加修正参数函数
-    CorrentionParameters(path.constraints, 100);
+    CorrentionParameters(path.accelerationType, path.constraints, 100);
 }
 
 int TrajectoryPlanning::TrajectoryTime(AccelerationType &accelerationtype, double &time, double Q, double v_0, double v_1, double vmax, double amax, double jmax, VectorXd &para)
@@ -2312,66 +2318,6 @@ void TrajectoryPlanning::ArcSegmentLineToLine(PointInformation &startpoint, Poin
     SetArcPathSegment(arcpath, intermediatepoint, arcstartpoint, arcendpoint, arccenter, intermediatepoint.radius, M_PI - theta);
 }
 
-void TrajectoryPlanning::ArcSegmentforLinetoLine(vector<PointInformation> waypoints, vector<PathInformation> pathes)
-{
-    if(size(waypoints) != 3) return;
-    PointInformation waypoint;
-    Vector3d startpoint;
-    Vector3d endpoint;
-    Vector3d middlepoint;
-    startpoint = waypoints[0].point;
-    endpoint = waypoints[1].point;
-    middlepoint = waypoints[2].point;
-    double theta = 0.0;
-    Vector3d line1;
-    Vector3d line2;
-    Vector3d startline;
-    Vector3d endline;
-    startline = startpoint - middlepoint;
-    endline = endpoint - middlepoint;
-    line1 = 0.5 * startline;
-    line2 = 0.5 * endline;
-    theta = acos(line1.dot(line2) / (line1.norm() * line2.norm()));
-    double l = waypoints[1].radius / tan(theta * 0.5);
-    if((line1.norm() - l) < 1e-6 || (line2.norm() - l)  < 1e-6) {
-        if((line1.norm() - line2.norm()) < 1e-6) {
-            if(line1.norm() > 1e-6) {
-                l = line1.norm();
-                waypoints[1].radius = tan(theta * 0.5) * l;
-            } else {
-                waypoints[1].radius = 0;
-                return;
-            }
-        } else {
-            if(line2.norm() > 1e-6) {
-                l = line2.norm();
-                waypoints[1].radius = tan(theta * 0.5) * l;
-            } else {
-                waypoints[1].radius = 0;
-                return;
-            }
-        }
-    }
-    Vector3d point1;
-    Vector3d point2;
-    point1 = startline / startline.norm() * l + startpoint;
-    point2 = endline / endline.norm() * l + endpoint;
-    Vector3d temppoint;
-    double d = l / cos(theta * 0.5);
-    temppoint = (0.5 * (point2 - point1) + point1) - middlepoint;
-    Vector3d center;
-    center = temppoint * d / temppoint.norm() - middlepoint;
-    PathInformation path;
-    SetLinePathSegment(path,waypoints[0],waypoints[1],point1);
-    pathes.push_back(path);
-    //添加初始化函数
-    SetCricularPathSegment(path,);
-
-
-
-
-}
-
 /**
  * @brief TrajectoryPlanning::SetLinePathSegment
  * @param path
@@ -2405,15 +2351,18 @@ void TrajectoryPlanning::SetCricularPathSegment(PathInformation &path, PointInfo
     path.radius = r;
     path.center = center;
     path.theta = theta;
-    path.startPoint = startpoint.point;
-    path.endPoint = endpoint.point;
-    path.startPose = startpoint.pose;
-    path.endPose = endpoint.pose;
-    path.maxVelocity = max(startpoint.maxVelocity, middlepoint.maxVelocity, endpoint.maxVelocity);
-    path.maxAcceleration = max(startpoint.maxAcceleration, middlepoint.maxAcceleration, endpoint.maxAcceleration);
-    path.maxJerk = max(startpoint.maxJerk, middlepoint.maxJerk, endpoint.maxJerk);
-    path.startVelocity = startpoint.velocity;
-    path.endVelocity = endpoint.velocity;
+    path.startpoint.point = startpoint.point;
+    path.endpoint.point = endpoint.point;
+    path.startpoint.pose = startpoint.pose;
+    path.endpoint.pose = endpoint.pose;
+    path.maxVelocity = max(startpoint.maxVelocity, middlepoint.maxVelocity);
+    path.maxVelocity = max(path.maxVelocity, endpoint.maxVelocity);
+    path.maxAcceleration = max(startpoint.maxAcceleration, middlepoint.maxAcceleration);
+    path.maxAcceleration = max(path.maxAcceleration, endpoint.maxAcceleration);
+    path.maxJerk = max(startpoint.maxJerk, middlepoint.maxJerk);
+    path.maxJerk = max(path.maxJerk, endpoint.maxJerk);
+    path.startpoint.velocity = startpoint.velocity;
+    path.endpoint.velocity = endpoint.velocity;
 }
 
 void TrajectoryPlanning::SetArcPathSegment(PathInformation &path, PointInformation intermediatepoint, Vector3d arcstart, Vector3d arcend,
@@ -2437,4 +2386,13 @@ void TrajectoryPlanning::SetArcPathSegment(PathInformation &path, PointInformati
     path.maxJerk                = intermediatepoint.maxJerk;
     path.startpoint.velocity    = intermediatepoint.velocity;
     path.endpoint.velocity      = intermediatepoint.velocity;
+}
+
+double TrajectoryPlanning::GetRand(double min, double max)
+{
+    default_random_engine e;
+    //uniform_real_distribution:产生均匀分布的实数
+    uniform_real_distribution<double> u(min,max);   //左闭右闭区间
+    e.seed(time(0));
+    return u(e);
 }
