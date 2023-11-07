@@ -4,6 +4,7 @@
 #include <QTextStream>
 #include <QFile>
 #include "mathfunction.h"
+#include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -126,6 +127,9 @@ void MainWindow::TestInterpolationCalculation()
 
 void MainWindow::TestMovep()
 {
+    QFile file("information.txt");
+    if(!file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) return;
+    file.close();
     vector<PointInformation> waypoints;
     vector<PathInformation> pathes;
     PointInformation waypoint;
@@ -151,17 +155,32 @@ void MainWindow::TestMovep()
     waypoint.maxAcceleration = maxAcceleration;
     waypoint.pathType = pathType;
     waypoint.jerk = jerk;
-    for (int i = 0; i < 2; i++) {
+    vector<Vector3d> defwaypoints;
+    defwaypoints.push_back(point);
+    point<<0.1,0.1,0.2555;
+    defwaypoints.push_back(point);
+    point<<0.2,0.05,0.2;
+    defwaypoints.push_back(point);
+    point<<0.3,0.05,0.3;
+    defwaypoints.push_back(point);
+    for (int i = 0; i < defwaypoints.size(); i++) {
         rand = GetMathInstance().GetRand(0.0,1.0);
-        waypoint.point = point * (1 + 0.5*rand);
+        waypoint.point = defwaypoints[i];
         waypoint.velocity = velocity * (1+1*rand);
         waypoint.acceleration = acceleration * (1+2*rand);
         waypoint.radius = radius * (1+0.05*rand);
         waypoints.push_back(waypoint);
     }
     GetTrajectoryPlanningInstance().Movep(waypoints, pathes);
-
-
+//    for(int i = 0; i < pathes.size(); i++) {
+//        qDebug()<<pathes[i].startpoint.point[0]<<pathes[i].startpoint.point[1]<<pathes[i].startpoint.point[2];
+//        qDebug()<<pathes[i].endpoint.point[0]<<pathes[i].endpoint.point[1]<<pathes[i].endpoint.point[2];
+//        if(pathes[i].pathType != Line)
+//            qDebug()<<pathes[i].intermediatepoint.point[0]<<pathes[i].intermediatepoint.point[1]<<pathes[i].intermediatepoint.point[2];
+//    }
+    GetTrajectoryPlanningInstance().TrajectoryInterpolation(pathes,100);
+    int aa = 100;
+    int qq = 33;
 }
 
 

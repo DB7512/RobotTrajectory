@@ -18,7 +18,6 @@ public:
     void SwapValue(float &val1, float &val2);
 
     double GetRand(double min, double max);
-
     void DelayMS(unsigned int msec);
 signals:
 

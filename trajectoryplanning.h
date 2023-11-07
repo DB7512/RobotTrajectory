@@ -8,22 +8,22 @@ using namespace std;
 using namespace Eigen;
 
 struct Parameters {
-    float Ta;
-    float Tv;
-    float Td;
-    float Tj1;
-    float Tj2;
-    float q0;
-    float q1;
-    float v0;
-    float v1;
-    float vlim;
-    float amax;
-    float amin;
-    float alima;
-    float alimd;
-    float jmax;
-    float jmin; //No.16
+    float Ta;//0
+    float Tv;//1
+    float Td;//2
+    float Tj1;//3
+    float Tj2;//4
+    float q0;//5
+    float q1;//6
+    float v0;//7
+    float v1;//8
+    float vlim;//9
+    float amax;//10
+    float amin;//11
+    float alima;//12
+    float alimd;//13
+    float jmax;//14
+    float jmin; //15
     Parameters() {
         memset(this,0,sizeof(Parameters));
     }
@@ -83,10 +83,8 @@ typedef struct _PointInformation {
 typedef struct _PathInformation {
     PointInformation startpoint;
     PointInformation endpoint;
-    //Vector3d startPoint;
-    //Vector3d endPoint;
-    //Vector4d startPose;
-    //Vector4d endPose;
+    PointInformation intermediatepoint; //中间点
+    Vector3d waypoint; //路径点
     double maxVelocity;
     double maxAcceleration;
     double maxJerk;
@@ -98,14 +96,14 @@ typedef struct _PathInformation {
     double displacement; //位移
     double arclength; //弧长
     Vector3d center; //圆心
-    VectorXd constraints; //16个参数的约束
+    VectorXd constraints = VectorXd::Zero(16); //16个参数的约束
     AccelerationType accelerationType; //加速度类型
     TrajectoryType trajectoryType; //姿态还是位移
 //    vector<vector<double> > TrajectoryInterpolation;
 //    vector<vector<double> > TrajectoryVelocity;
 //    vector<vector<double> > TrajectoryAcceleration;
 //    _TrajectoryInformation() {
-//        memset(this,0,sizeof(_TrajectoryInformation));
+////        memset(this,0,sizeof(_TrajectoryInformation));
 //        constraints = VectorXd::Zero(16);
 //        maxJerk = 80;
 //        pathType = None;
@@ -142,8 +140,9 @@ public:
     void TrajectoryCalculationD(double t, VectorXd para, double q_dq[3]);
 
     void Movep(vector<PointInformation> waypoints, vector<PathInformation> &pathes);
+    bool TrajectoryInterpolation(vector<PathInformation> pathes, int peroid);
     void CompoundTrajectory(vector<PointInformation> &waypoints, vector<PathInformation> &path);
-    void CalculatePathParameters(PathInformation path);
+    void CalculatePathParameters(PathInformation &path);
     int TrajectoryTime(AccelerationType &accelerationtype, double &time, double Q, double v_0, double v_1, double vmax, double amax, double jmax, VectorXd &para);
     void CorrentionParameters(AccelerationType accelerationtype, VectorXd &para, int peroid);
     void TrajectoryCalculation(double t, VectorXd para, double q_dq[3]);
@@ -153,8 +152,12 @@ public:
     void SetCricularPathSegment(PathInformation &path, PointInformation startpoint, PointInformation endpoint, PointInformation middlepoint, Vector3d center, double r, double theta);
     void SetArcPathSegment(PathInformation &path, PointInformation intermediatepoint, Vector3d arcstart, Vector3d arcend, Vector3d arccenter, double radius, double theta);
 
-    double GetRand(double min, double max);
+    void ArcParameterCalculate(Vector3d p1, Vector3d p2, Vector3d p3, Vector3d &center, double radius, Vector3d normal, double theta);
+    Vector3d LineIntersectCricular(Vector3d startpoint, Vector3d endpoint, double radius);
+    Vector3d CricularIntersectCricular(Vector3d center, double circularradius, Vector3d normal, Vector3d intersectpoint, double radius);
 
+    void LineIntersectSphere(Vector3d startpoint, Vector3d endpoint, Vector3d node, double radius);
+    void SolvingQuadratics(double a, double b, double c, vector<double> &t);
 signals:
 
 public:

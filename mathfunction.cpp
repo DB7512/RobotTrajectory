@@ -95,26 +95,25 @@ void MathFunction::Equation_Root3(float coffe[4], float Roots_result[3])
 
 void MathFunction::Equation_Root4(float coffe[5], float Roots_result[4][2])
 {
-    Matrix<float, 5, 5>matrix_coffe;
+    Matrix<float, 4, 4>matrix_coffe;
     Matrix<complex<float>, Dynamic, Dynamic>matrix_sigenvalues;
-    VectorXf rl = VectorXf(5);
-    VectorXf ig = VectorXf(5);
-    matrix_coffe << -coffe[1] / coffe[0], -coffe[2] / coffe[0], -coffe[3] / coffe[0], -coffe[4] / coffe[0], -coffe[5] / coffe[0],
-        1, 0, 0, 0, 0,
-        0, 1, 0, 0, 0,
-        0, 0, 1, 0, 0,
-        0, 0, 0, 1, 0;
+    VectorXf rl = VectorXf(4);
+    VectorXf ig = VectorXf(4);
+    matrix_coffe << -coffe[1] / coffe[0], -coffe[2] / coffe[0], -coffe[3] / coffe[0], -coffe[4] / coffe[0],
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 0;
 
     matrix_sigenvalues = matrix_coffe.eigenvalues();
     rl << matrix_sigenvalues.real();
     ig << matrix_sigenvalues.imag();
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 4; i++) {
         if (ig(i) < 0.000001 && ig(i) > -0.000001) {
             Roots_result[i][0] = rl(i);
             Roots_result[i][1] = 0;
-        }
-        else {
+        } else {
             Roots_result[i][0] = 0;
             Roots_result[i][1] = 0;
         }

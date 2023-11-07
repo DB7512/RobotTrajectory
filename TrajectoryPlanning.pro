@@ -12,12 +12,16 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     mathfunction.cpp \
-    trajectoryplanning.cpp
+    pathconstruction.cpp \
+    trajectoryplanning.cpp \
+    velocityplanning.cpp
 
 HEADERS += \
     mainwindow.h \
     mathfunction.h \
-    trajectoryplanning.h
+    pathconstruction.h \
+    trajectoryplanning.h \
+    velocityplanning.h
 
 FORMS += \
     mainwindow.ui

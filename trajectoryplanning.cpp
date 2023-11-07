@@ -6,9 +6,7 @@
 #include "cmath"
 #include <algorithm>
 #include <ctime>
-#include <random>
-#include <unistd.h>
-#include <iostream>
+
 
 TrajectoryPlanning::TrajectoryPlanning(QObject *parent)
     : QObject{parent}
@@ -79,11 +77,11 @@ bool TrajectoryPlanning::LinePlanning(int peroid, PointInformation point_start, 
         stream<<number<<" "<<lambda[i]<<" "<<q_dq[0]<<" "<<q_dq[1]<<"\n";
         data.close();
         //        qDebug()<<lambda[i]<<q_dq[1];
-//        interpolation_point[0] = pose_start[0] + detla_x * lambda[i];
-//        interpolation_point[1] = pose_start[1] + detla_y * lambda[i];
-//        interpolation_point[2] = pose_start[2] + detla_z * lambda[i];
-//        trajectory_point.push_back(interpolation_point);
-//        trajectory_inf.push_back(infpoint);
+        //        interpolation_point[0] = pose_start[0] + detla_x * lambda[i];
+        //        interpolation_point[1] = pose_start[1] + detla_y * lambda[i];
+        //        interpolation_point[2] = pose_start[2] + detla_z * lambda[i];
+        //        trajectory_point.push_back(interpolation_point);
+        //        trajectory_inf.push_back(infpoint);
         //        qDebug()<<interpolation_point[0];
     }
     return true;
@@ -92,7 +90,7 @@ bool TrajectoryPlanning::LinePlanning(int peroid, PointInformation point_start, 
 bool TrajectoryPlanning::TimePlanning(int peroid, float Q, float vmax, float amax, float jmax, float v_0, float v_1, std::vector<float> &trajectory_point, vector<vector<float> > &trajectory_inf)
 {
     float trajectory_ftime = 0.0; //trajectory time
-//    double trajectory_ftime = 0.0; //trajectory time
+    //    double trajectory_ftime = 0.0; //trajectory time
     int interpolation_peroid_num = 0; //need period number
     float t = 0.0; //time
     //calculate time
@@ -1337,7 +1335,7 @@ int TrajectoryPlanning::TrajectoryTime5(double &time, float Q, float v_0, float 
 
 void TrajectoryPlanning::CorrentionParameters(VectorXf &para, int peroid)
 {
-    float Ta, Tv, Td, Tj1, Tj2, Q, v_0, v_1, vlim, amax, alima, alimd, jmax, jmin;
+    float Ta, Tv, Td, Tj1, Tj2, Q, v_0, v_1, vlim, amax, amin, alima, alimd, jmax, jmin;
     Ta     = para(0);
     Tv     = para(1);
     Td     = para(2);
@@ -1628,22 +1626,22 @@ void TrajectoryPlanning::TrajectoryCalculation(float t, VectorXf para, float q_d
 
 void TrajectoryPlanning::TrajectoryCalculationD(double t, VectorXd para, double q_dq[3])
 {
-    double Ta, Tv, Td, Tj1, Tj2, p1, p2, v_0, v_1, vlim, amax, alima, alimd, jmax, jmin;
-    Ta      = para(0);
-    Tv      = para(1);
-    Td      = para(2);
-    Tj1     = para(3);
-    Tj2     = para(4);
-    p1      = para(5);
-    p2      = para(6);
-    v_0     = para(7);
-    v_1     = para(8);
-    vlim    = para(9);
-    amax    = para(10);
-    alima   = para(11);
-    alimd   = para(12);
-    jmax    = para(13);
-    jmin    = para(14);
+    double Ta, Tv, Td, Tj1, Tj2, p1 = 0.0, p2, v_0, v_1, vlim, amax, amin, alima, alimd, jmax, jmin;
+    Ta     = para(0);
+    Tv     = para(1);
+    Td     = para(2);
+    Tj1    = para(3);
+    Tj2    = para(4);
+    p2     = para(6);
+    v_0    = para(7);
+    v_1    = para(8);
+    vlim   = para(9);
+    amax   = para(10);
+    amin   = para(11);
+    alima  = para(12);
+    alimd  = para(13);
+    jmax   = para(14);
+    jmin   = para(15);
     double T = 0.0;
     double q = 0.0, v = 0.0, a = 0.0, j = 0.0;
     T = Ta + Tv + Td;
@@ -1698,6 +1696,13 @@ void TrajectoryPlanning::Movep(vector<PointInformation> waypoints, vector<PathIn
 {
     vector<PathInformation> temppath;
     CompoundTrajectory(waypoints, temppath);
+//    for (int i = 0; i < temppath.size(); i++) {
+//        qDebug()<<temppath[i].startpoint.point[0]<<temppath[i].startpoint.point[1]<<temppath[i].startpoint.point[2];
+//        qDebug()<<temppath[i].endpoint.point[0]<<temppath[i].endpoint.point[1]<<temppath[i].endpoint.point[2];
+//    }
+    //    for (int i = 0; i < waypoints.size(); i++) {
+    //        qDebug()<<waypoints[i].point[0]<<waypoints[i].point[1]<<waypoints[i].point[2];
+    //    }
     if(temppath.size() < 1) {
         return;
     } else if (temppath.size() == 1) {
@@ -1706,15 +1711,16 @@ void TrajectoryPlanning::Movep(vector<PointInformation> waypoints, vector<PathIn
         vector<PathInformation>::const_iterator path1 = temppath.begin();
         vector<PathInformation>::const_iterator path2 = path1;
         path2++;
-        PathInformation currentpath = *path1;
         PathInformation finalpath;
-        while(path2 != temppath.end()) {
+        while(path2 != temppath.end() - 1) {
+            PathInformation currentpath = *path1;
             PathInformation nextpath = *path2;
             if(nextpath.pathType == Arc) {
                 finalpath = nextpath;
                 finalpath.pathType = Line2arc;
                 finalpath.startpoint = currentpath.startpoint;
                 finalpath.endpoint = nextpath.endpoint;
+                finalpath.intermediatepoint = currentpath.endpoint;
                 finalpath.displacement = currentpath.displacement;
                 finalpath.arclength = nextpath.arclength;
                 //finalpath.radius = nextpath.radius;
@@ -1726,14 +1732,87 @@ void TrajectoryPlanning::Movep(vector<PointInformation> waypoints, vector<PathIn
                 pathes.push_back(finalpath);
                 path2++;
                 path1 = path2;
-                if(path1 != temppath.end()) {
+                if(path1 != temppath.end() - 1) {
                     path2++;
                 } else {
+                    PointInformation pathstart = finalpath.endpoint;
                     finalpath = *path1;
+                    finalpath.startpoint = pathstart;
+                    finalpath.pathType = Line;
                     CalculatePathParameters(finalpath);
                     pathes.push_back(finalpath);
-                    return;
+                    break;
                 }
+            }
+        }
+    }
+}
+
+bool TrajectoryPlanning::TrajectoryInterpolation(vector<PathInformation> pathes, int peroid)
+{
+    if(pathes.size() < 1)
+        return false;
+    double t = 0.0;
+    double time = 0.0;
+    int interpolation_peroid_num = 0;
+    double Q = 0.0;
+    for (int i = 0; i < pathes.size(); i++) {
+        PathInformation path = pathes[i];
+        if(path.pathType == Line) {
+            Q = path.displacement;
+            time = path.constraints[0] + path.constraints[1] + path.constraints[2];
+            if (time < 1e-10) return false;
+            interpolation_peroid_num = round(time / (1.0 / peroid));
+            double lambda[interpolation_peroid_num];
+            vector<Vector3d> interpolation_points;
+            Vector3d interpolation_point;
+            double q_dq[3] = {0.0};
+            for (int j = 0; j < interpolation_peroid_num; j++) {
+                t = j * (1.0/peroid);
+                //calculate trajectory
+                TrajectoryCalculationD(t, path.constraints, q_dq);
+                if(Q!=0)
+                    lambda[j] = q_dq[0] / Q;
+                interpolation_point = path.startpoint.point + lambda[j] * (path.endpoint.point - path.startpoint.point);
+                interpolation_points.push_back(interpolation_point);
+                QFile data("information.txt");
+                if(!data.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Append)) return false;
+                QTextStream stream(&data);
+                stream<<j<<" "<<lambda[j]<<" "<<q_dq[0]<<" "<<q_dq[1]<<" "<<interpolation_point[0]<<" "<<interpolation_point[1]<<" "<<interpolation_point[2]<<"\n";
+                data.close();
+            }
+        }else if(path.pathType == Line2arc) {
+            Q = path.displacement + path.arclength;
+            time = path.constraints[0] + path.constraints[1] + path.constraints[2];
+            if (time < 1e-10) return false;
+            interpolation_peroid_num = round(time / (1.0 / peroid));
+            double lambda[interpolation_peroid_num];
+            vector<Vector3d> interpolation_points;
+            Vector3d interpolation_point;
+            double q_dq[3] = {0.0};
+            for (int j = 0; j < interpolation_peroid_num; j++) {
+                t = j*(1.0/peroid);
+                //calculate trajectory
+                TrajectoryCalculationD(t, path.constraints, q_dq);
+                if(Q!=0)
+                    lambda[j] = q_dq[0] / Q;
+                if(lambda[j] <= (path.displacement/Q)) {
+                    interpolation_point = path.startpoint.point + lambda[j] / (path.displacement/Q) * (path.intermediatepoint.point - path.startpoint.point);
+                } else {
+                    Vector3d yaxis = path.intermediatepoint.point - path.startpoint.point;
+                    Vector3d xaxis = path.intermediatepoint.point - path.center;
+                    //yaxis.normalized();
+                    //xaxis.normalized();
+                    double s = lambda[j] * Q - path.displacement;
+                    qDebug()<<"s"<<s;
+                    interpolation_point = path.center + path.radius * (xaxis/xaxis.norm()*cos(s / path.radius) + yaxis/yaxis.norm()*sin(s / path.radius));
+                }
+                interpolation_points.push_back(interpolation_point);
+                QFile data("information.txt");
+                if(!data.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Append)) return false;
+                QTextStream stream(&data);
+                stream<<j<<" "<<lambda[j]<<" "<<q_dq[0]<<" "<<q_dq[1]<<" "<<interpolation_point[0]<<" "<<interpolation_point[1]<<" "<<interpolation_point[2]<<"\n";
+                data.close();
             }
         }
     }
@@ -1748,37 +1827,38 @@ void TrajectoryPlanning::CompoundTrajectory(vector<PointInformation> &waypoints,
     point2++;
     vector<PointInformation>::const_iterator point3;
     PointInformation startpoint = *point1;
-    while(point2 != waypoints.end()) {
+    while(point2 != waypoints.end() - 1) { //vector.end()指向最后一个元素的下一个位置，访问最后一个元素应该为vector.end()-1
         point3 = point2;
         point3++;
-        PointInformation intermediatepoint;
-        PointInformation endpoint;
+        PointInformation intermediatepoint; //中间点
+        PointInformation endpoint; //终点
         intermediatepoint = *point2;
         endpoint = *point3;
         PathInformation arcpath;
+        //计算圆弧段
         ArcSegmentLineToLine(startpoint, intermediatepoint, endpoint, arcpath);
         PathInformation linepath;
+        //计算直线段
         SetLinePathSegment(linepath, startpoint, endpoint, arcpath);
         path.push_back(linepath);
         path.push_back(arcpath);
-        startpoint = arcpath.endpoint;
+        startpoint = arcpath.endpoint; //圆弧段终点作为下一段规划的起点
         point2 = point3;
     }
-    PointInformation intermediatepoint;
+    //point2是最后一个路点，此时不用计算圆弧段
     PointInformation endpoint;
-    intermediatepoint = *point2;
-    endpoint = *point3;
+    endpoint = *point2;
     PathInformation linepath;
     PathInformation arcpath;
     SetLinePathSegment(linepath, startpoint, endpoint, arcpath);
     path.push_back(linepath);
 }
 
-void TrajectoryPlanning::CalculatePathParameters(PathInformation path)
+void TrajectoryPlanning::CalculatePathParameters(PathInformation &path)
 {
     double time = 0.0;
     double Q = 0.0;
-    if(path.pathType = Line2arc) {
+    if(path.pathType == Line2arc) {
         Q = path.displacement + path.arclength;
     } else if(path.pathType == Line) {
         Q = path.displacement;
@@ -1786,7 +1866,7 @@ void TrajectoryPlanning::CalculatePathParameters(PathInformation path)
         Q = path.arclength;
     }
     TrajectoryTime(path.accelerationType, time, Q, path.startpoint.velocity, path.endpoint.velocity, path.maxVelocity, path.maxAcceleration, path.maxJerk, path.constraints);
-    //添加修正参数函数
+    //修正轨迹约束参数
     CorrentionParameters(path.accelerationType, path.constraints, 100);
 }
 
@@ -2283,6 +2363,9 @@ void TrajectoryPlanning::ArcSegmentLineToLine(PointInformation &startpoint, Poin
     Vector3d intermediate2end = 0.5 * (epoint - ipoint);
     //两直线夹角
     double theta = acos(intermediate2start.dot(intermediate2end) / (intermediate2start.norm() * intermediate2end.norm()));
+    //    double theta = acos((intermediate2start[0]*1000.0*intermediate2end[0]*1000.0 + intermediate2start[1]*1000.0*intermediate2end[1]*1000.0 + intermediate2start[2]*1000.0*intermediate2end[2]*1000.0) / (intermediate2start.norm()*1000.0 * intermediate2end.norm()*1000.0));
+    if(theta / M_PI * 180.0 < 1e-10)
+        return;
     double l = intermediatepoint.radius / tan(theta * 0.5);
     //判断交融点是否超过直线中点
     if((intermediate2start.norm() - l) < 1e-6 || (intermediate2end.norm() - l)  < 1e-6) {
@@ -2370,6 +2453,7 @@ void TrajectoryPlanning::SetArcPathSegment(PathInformation &path, PointInformati
 {
     path.startpoint             = intermediatepoint;
     path.endpoint               = intermediatepoint;
+    path.waypoint               = intermediatepoint.point;
     path.startpoint.pathType    = Arc;
     path.endpoint.pathType      = Arc;
     path.pathType               = Arc;
@@ -2388,11 +2472,87 @@ void TrajectoryPlanning::SetArcPathSegment(PathInformation &path, PointInformati
     path.endpoint.velocity      = intermediatepoint.velocity;
 }
 
-double TrajectoryPlanning::GetRand(double min, double max)
+void TrajectoryPlanning::ArcParameterCalculate(Vector3d p1, Vector3d p2, Vector3d p3, Vector3d &center, double radius, Vector3d normal, double theta)
 {
-    default_random_engine e;
-    //uniform_real_distribution:产生均匀分布的实数
-    uniform_real_distribution<double> u(min,max);   //左闭右闭区间
-    e.seed(time(0));
-    return u(e);
+    // 三个点queding一个平面方程
+    double k_11 = (p1(1) - p3(1))*(p2(2) - p3(2)) - (p2(1) - p3(1))*(p1(2) - p3(2));
+    double k_12 = (p2(0) - p3(0))*(p1(2) - p3(2)) - (p1(0) - p3(0))*(p2(2) - p3(2));
+    double k_13 = (p1(0) - p3(0))*(p2(1) - p3(1)) - (p2(0) - p3(0))*(p1(1) - p3(1));
+    double k_14 = -(k_11*p3(0) + k_12*p3(1) + k_13*p3(2));
+    // 过p1 p2的中点并且和 p1p2 垂直的平面方程
+    double k_21 = p2(0) - p1(0);
+    double k_22 = p2(1) - p1(1);
+    double k_23 = p2(2) - p1(2);
+    double k_24 = -((pow(p2(0),2) - pow(p1(0),2)) + (pow(p2(1),2) - pow(p1(1),2)) + (pow(p2(2), 2) - pow(p1(2),2))) / 2;
+    // 过p2 p3的中点并且和 p2p3 垂直的平面方程
+    double k_31 = p3(0) - p2(0);
+    double k_32 = p3(1) - p2(1);
+    double k_33 = p3(2) - p2(2);
+    double k_34 = -((pow(p3(0),2) - pow(p2(0),2)) + (pow(p3(1),2) - pow(p2(1),2)) + (pow(p3(2),2) - pow(p2(2),2))) / 2;
+    // 圆心肯定在这三个平面上面。利用点法式方程求得圆心
+    Matrix3d k_123 = Matrix3d::Zero();
+    k_123 << k_11, k_12, k_13,
+             k_21, k_22, k_23,
+             k_31, k_32, k_33;
+    Vector3d k_4 = Vector3d::Zero();
+    k_4<< -k_14, -k_24, -k_34;
+    //center
+    center = k_123.inverse()*k_4;
+    //radius
+    radius = sqrt(pow((center(0) - p1(0)),2) + pow((center(1) - p1(1)),2) + pow((center(2) - p1(2)),2));
+
+    Vector3d center2p1 = p1 - center;
+    Vector3d center2p2 = p2 - center;
+    Vector3d center2p3 = p3 - center;
+    Vector3d normal1 = center2p1.cross(center2p2);
+    Vector3d normal2 = center2p1.cross(center2p3);
+    double theta1 = acos(center2p1.dot(center2p2) / (center2p1.norm() * center2p2.norm()));
+    double theta2 = acos(center2p1.dot(center2p3) / (center2p1.norm() * center2p3.norm()));
+    if(normal1.dot(normal2) > 0) {
+        if(theta1 > theta2) {
+            theta = 2*M_PI - theta2;
+            normal = - normal1.normalize();
+        } else {
+            theta = theta2;
+            normal = normal1.normalize();
+        }
+    } else {
+        theta = 2*M_PI - theta2;
+        normal = normal1.normalize();
+    }
 }
+
+Vector3d TrajectoryPlanning::LineIntersectCricular(Vector3d startpoint, Vector3d endpoint, double radius)
+{
+    Vector3d start2end = endpoint - startpoint;
+    return endpoint - radius * start2end.norm();
+}
+
+Vector3d TrajectoryPlanning::CricularIntersectCricular(Vector3d center, double circularradius, Vector3d normal, Vector3d intersectpoint, double radius)
+{
+    double theta = 2 * asin(circularradius * 0.5 * radius);
+    Vector3d center2intersect = intersectpoint - center;
+    Eigen::AngleAxisd rotationvector(theta, center2intersect);
+    Eigen::Matrix3d rotationmatrix;
+    rotationmatrix = rotationvector.matrix();
+//    rotationmatrix = rotationvector.toRotationMatrix();
+    return rotationmatrix * center2intersect + center;
+}
+
+void TrajectoryPlanning::LineIntersectSphere(Vector3d startpoint, Vector3d endpoint, Vector3d node, double radius)
+{
+    Vector3d start2end = endpoint - startpoint;
+    double a = pow(start2end[0],2) + pow(start2end[1],2) + pow(start2end[2],2);
+    double b = 2 * (start2end[0] * (startpoint[0] - endpoint[0]) + start2end[1] * (startpoint[1] - endpoint[1]) + start2end[2] * (startpoint[2] - endpoint[2]));
+    double c = pow(startpoint[0] - endpoint[0],2) + pow(startpoint[1] - endpoint[1],2) + pow(startpoint[2] - endpoint[2],2) - pow(radius,2);
+
+    vector<double> t;
+    SolvingQuadratics(a, b, c, t);
+}
+
+void TrajectoryPlanning::SolvingQuadratics(double a, double b, double c, vector<double> &t)
+{
+
+}
+
+
