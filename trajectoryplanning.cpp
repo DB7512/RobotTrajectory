@@ -2474,7 +2474,7 @@ void TrajectoryPlanning::SetArcPathSegment(PathInformation &path, PointInformati
 
 void TrajectoryPlanning::ArcParameterCalculate(Vector3d p1, Vector3d p2, Vector3d p3, Vector3d &center, double radius, Vector3d normal, double theta)
 {
-    // 三个点queding一个平面方程
+    // 三个点确定一个平面方程
     double k_11 = (p1(1) - p3(1))*(p2(2) - p3(2)) - (p2(1) - p3(1))*(p1(2) - p3(2));
     double k_12 = (p2(0) - p3(0))*(p1(2) - p3(2)) - (p1(0) - p3(0))*(p2(2) - p3(2));
     double k_13 = (p1(0) - p3(0))*(p2(1) - p3(1)) - (p2(0) - p3(0))*(p1(1) - p3(1));
@@ -2521,23 +2521,65 @@ void TrajectoryPlanning::ArcParameterCalculate(Vector3d p1, Vector3d p2, Vector3
         normal = normal1.normalize();
     }
 }
-
-Vector3d TrajectoryPlanning::LineIntersectCricular(Vector3d startpoint, Vector3d endpoint, double radius)
+/**
+ * @brief TrajectoryPlanning::LineIntersectCricular 线段与以端点为圆心，r为半径的圆的交点
+ * @param startpoint                                线段起点
+ * @param endpoint                                  线段终点
+ * @param radius                                    半径
+ * @return                                          直线与圆的交点
+ */
+Vector3d TrajectoryPlanning::LineIntersectCricular(Vector3d startpoint, Vector3d endpoint, double radius, ConnectionType type)
 {
     Vector3d start2end = endpoint - startpoint;
-    return endpoint - radius * start2end.norm();
+    if(type == ConnectwithEnd) {
+        return endpoint - radius * start2end.normalize();
+    } else if(type == ConnectwithStart){
+        return startpoint + radius * start2end.normalize();
+    }
+}
+/**
+ * @brief TrajectoryPlanning::LineTangent   线段某端点处的单位切向量
+ * @param startpoint                        起点
+ * @param endpoint                          终点
+ * @param type                              连接点类型
+ * @return                                  端点处的单位切向量
+ */
+Vector3d TrajectoryPlanning::LineTangent(Vector3d startpoint, Vector3d endpoint, ConnectionType type)
+{
+    Vector3d start2end = endpoint - startpoint;
+    if(type == ConnectwithEnd) {
+        return start2end.normalize();
+    } else if(type == ConnectwithStart){
+        return -start2end.normalize();
+    }
 }
 
-Vector3d TrajectoryPlanning::CricularIntersectCricular(Vector3d center, double circularradius, Vector3d normal, Vector3d intersectpoint, double radius)
+/**
+ * @brief TrajectoryPlanning::CricularIntersectCricular 圆弧与以圆弧端点为圆心，r为半径的圆的交点
+ * @param center                                        圆弧圆心
+ * @param circularradius                                圆弧半径
+ * @param normal                                        圆弧法线（圆弧起点旋转到圆弧终点）
+ * @param intersectpoint                                圆弧端点
+ * @param radius                                        圆半径
+ * @return                                              圆弧与圆的交点
+ */
+Vector3d TrajectoryPlanning::CricularIntersectCricular(Vector3d center, double circularradius, Vector3d normal, Vector3d intersectpoint, double radius, ConnectionType type)
 {
-    double theta = 2 * asin(circularradius * 0.5 * radius);
-    Vector3d center2intersect = intersectpoint - center;
-    Eigen::AngleAxisd rotationvector(theta, center2intersect);
+    double theta = 2 * asin(0.5 * radius / circularradius); //计算圆弧与圆交点到圆弧连接点对应的圆心角
+    Vector3d center2intersect = intersectpoint - center;    //圆心指向圆弧连接点的矢量
+    Eigen::AngleAxisd rotationvectorend(-theta, normal);       //绕圆弧法线旋转-theta角，得到圆弧与圆的交点的矢量
+    Eigen::AngleAxisd rotationvectorstart(theta, normal);      //绕圆弧法线旋转theta角，得到圆弧与圆的交点的矢量
     Eigen::Matrix3d rotationmatrix;
-    rotationmatrix = rotationvector.matrix();
+    if(type == ConnectwithEnd) {
+        rotationmatrix = rotationvectorend.matrix();
+    } else if(type == ConnectwithStart){
+        rotationmatrix = rotationvectorstart.matrix();
+    }
 //    rotationmatrix = rotationvector.toRotationMatrix();
-    return rotationmatrix * center2intersect + center;
+    return rotationmatrix * center2intersect + center;      //圆弧与圆的交点
 }
+
+
 
 void TrajectoryPlanning::LineIntersectSphere(Vector3d startpoint, Vector3d endpoint, Vector3d node, double radius)
 {

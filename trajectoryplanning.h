@@ -28,6 +28,7 @@ struct Parameters {
         memset(this,0,sizeof(Parameters));
     }
 };
+
 typedef enum {
     TraZeroTra = 0,
     TriZeroTra,
@@ -60,6 +61,11 @@ typedef enum {
     Circular,   //圆弧
     Line2arc,
 }PathType;
+
+typedef enum {
+    ConnectwithStart,
+    ConnectwithEnd,
+}ConnectionType;
 
 typedef struct _PointInformation {
     Vector3d point; //位置
@@ -153,8 +159,13 @@ public:
     void SetArcPathSegment(PathInformation &path, PointInformation intermediatepoint, Vector3d arcstart, Vector3d arcend, Vector3d arccenter, double radius, double theta);
 
     void ArcParameterCalculate(Vector3d p1, Vector3d p2, Vector3d p3, Vector3d &center, double radius, Vector3d normal, double theta);
-    Vector3d LineIntersectCricular(Vector3d startpoint, Vector3d endpoint, double radius);
-    Vector3d CricularIntersectCricular(Vector3d center, double circularradius, Vector3d normal, Vector3d intersectpoint, double radius);
+    Vector3d LineIntersectCricular(Vector3d startpoint, Vector3d endpoint, double radius, ConnectionType type);
+    Vector3d CricularIntersectCricular(Vector3d center, double circularradius, Vector3d normal, Vector3d intersectpoint, double radius, ConnectionType type);
+    Vector3d LineTangent(Vector3d startpoint, Vector3d endpoint, ConnectionType type);
+
+
+
+
 
     void LineIntersectSphere(Vector3d startpoint, Vector3d endpoint, Vector3d node, double radius);
     void SolvingQuadratics(double a, double b, double c, vector<double> &t);
