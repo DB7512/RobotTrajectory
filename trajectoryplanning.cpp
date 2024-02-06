@@ -2511,14 +2511,14 @@ void TrajectoryPlanning::ArcParameterCalculate(Vector3d p1, Vector3d p2, Vector3
     if(normal1.dot(normal2) > 0) {
         if(theta1 > theta2) {
             theta = 2*M_PI - theta2;
-            normal = - normal1.normalize();
+            normal = - normal1.normalized();
         } else {
             theta = theta2;
-            normal = normal1.normalize();
+            normal = normal1.normalized();
         }
     } else {
         theta = 2*M_PI - theta2;
-        normal = normal1.normalize();
+        normal = normal1.normalized();
     }
 }
 /**
@@ -2532,9 +2532,9 @@ Vector3d TrajectoryPlanning::LineIntersectCricular(Vector3d startpoint, Vector3d
 {
     Vector3d start2end = endpoint - startpoint;
     if(type == ConnectwithEnd) {
-        return endpoint - radius * start2end.normalize();
+        return endpoint - radius * start2end.normalized();
     } else if(type == ConnectwithStart){
-        return startpoint + radius * start2end.normalize();
+        return startpoint + radius * start2end.normalized();
     }
 }
 /**
@@ -2548,9 +2548,9 @@ Vector3d TrajectoryPlanning::LineTangent(Vector3d startpoint, Vector3d endpoint,
 {
     Vector3d start2end = endpoint - startpoint;
     if(type == ConnectwithEnd) {
-        return start2end.normalize();
+        return start2end.normalized();
     } else if(type == ConnectwithStart){
-        return -start2end.normalize();
+        return -start2end.normalized();
     }
 }
 

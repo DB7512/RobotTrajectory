@@ -5,6 +5,9 @@
 #include <QFile>
 #include "mathfunction.h"
 #include <QDebug>
+#include <eigen-3.4.0/Eigen/Dense>
+#include "bsplinecurve.h"
+#include <sys/time.h>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -17,6 +20,37 @@ MainWindow::~MainWindow()
 {
     delete ui;
 }
+
+void MainWindow::TestBSpline()
+{
+    Vector3d point;
+    vector<Vector3d> controlPoint;
+    point = {100.0,200.0,300};
+    controlPoint.push_back(point);
+    controlPoint.push_back(point);
+    point = {103.0,198.0,315};
+    controlPoint.push_back(point);
+    point = {106.0,200.0,290};
+    controlPoint.push_back(point);
+    point = {109.0,210.0,280};
+    controlPoint.push_back(point);
+    controlPoint.push_back(point);
+    double sum = 0.0;
+    for (int i = 0; i < (int)(controlPoint.size()); ++i) {
+        sum += (controlPoint[i+1] - controlPoint[i]).norm();
+    }
+    qDebug()<<"llength"<<sum;
+    BSplineCurve curve(controlPoint, 3);
+    double L = curve.calculateLength(0,1,1e-6);
+    qDebug()<<"length"<<L;
+    Vector3d p;
+    for (int i = 0; i < 100; ++i) {
+        double u = i * 0.01;
+        curve.calculateBSplinePoint(u,3,p);
+        qDebug()<<"point"<<i<<p[0]<<p[1]<<p[2];
+    }
+}
+
 
 void MainWindow::TestTimeCalculation()
 {
@@ -172,12 +206,12 @@ void MainWindow::TestMovep()
         waypoints.push_back(waypoint);
     }
     GetTrajectoryPlanningInstance().Movep(waypoints, pathes);
-//    for(int i = 0; i < pathes.size(); i++) {
-//        qDebug()<<pathes[i].startpoint.point[0]<<pathes[i].startpoint.point[1]<<pathes[i].startpoint.point[2];
-//        qDebug()<<pathes[i].endpoint.point[0]<<pathes[i].endpoint.point[1]<<pathes[i].endpoint.point[2];
-//        if(pathes[i].pathType != Line)
-//            qDebug()<<pathes[i].intermediatepoint.point[0]<<pathes[i].intermediatepoint.point[1]<<pathes[i].intermediatepoint.point[2];
-//    }
+    //    for(int i = 0; i < pathes.size(); i++) {
+    //        qDebug()<<pathes[i].startpoint.point[0]<<pathes[i].startpoint.point[1]<<pathes[i].startpoint.point[2];
+    //        qDebug()<<pathes[i].endpoint.point[0]<<pathes[i].endpoint.point[1]<<pathes[i].endpoint.point[2];
+    //        if(pathes[i].pathType != Line)
+    //            qDebug()<<pathes[i].intermediatepoint.point[0]<<pathes[i].intermediatepoint.point[1]<<pathes[i].intermediatepoint.point[2];
+    //    }
     GetTrajectoryPlanningInstance().TrajectoryInterpolation(pathes,100);
     int aa = 100;
     int qq = 33;
@@ -186,9 +220,15 @@ void MainWindow::TestMovep()
 
 void MainWindow::on_Test_clicked()
 {
-//    TestTimeCalculation();
-//    TestInterpolationCalculation();
-    TestMovep();
+    // TestTimeCalculation();
+    // TestInterpolationCalculation();
+    // TestMovep();
+    struct timeval tptime1,tptime2;
+    gettimeofday(&tptime1,NULL);
+    TestBSpline();
+    gettimeofday(&tptime2,NULL);
+    float timeuse = (1000000*(tptime2.tv_sec-tptime1.tv_sec) + tptime2.tv_usec-tptime1.tv_usec);
+    qDebug()<<"time"<<timeuse;
 }
 
 
