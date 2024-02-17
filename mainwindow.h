@@ -14,14 +14,14 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    void TestVelocity();
+    void TestTime();
     void TestBSpline();
     void TestTimeCalculation();
     void TestInterpolationCalculation();
     void TestMovep();
 private slots:
     void on_Test_clicked();
-
-    void on_Test_2_clicked();
 
 private:
     Ui::MainWindow *ui;

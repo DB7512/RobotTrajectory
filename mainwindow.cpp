@@ -8,6 +8,7 @@
 #include <eigen-3.4.0/Eigen/Dense>
 #include "bsplinecurve.h"
 #include <sys/time.h>
+#include "velocityplanning.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -19,6 +20,74 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+void MainWindow::TestVelocity()
+{
+    double l = 0.5;
+    double jmax = 80.0;
+    VectorXd para;
+    double time = 0.0;
+    double vs = 1.5;
+    double ve = 1.5;
+    double vmax = 1.0;
+    double amax = 5.0;
+    if (!GetVelPlanInstance().SetVelocityPlan(l,vs,ve,vmax,amax,jmax,para,time)) {
+        if (!GetVelPlanInstance().GetVelocityType(para, 100)) {
+            if (!GetVelPlanInstance().CorrentParas(para, 100)) {
+                time = para(0) + para(1) + para(2);
+                int n = (int) (time / (1.0 / 100));
+                double t = 0.0;
+                for (int i = 0; i <= n; ++i) {
+                    t = i * 0.01;
+                    qDebug()<<"pos"<<GetVelPlanInstance().GetPosition(t, para)<<"vel"<<GetVelPlanInstance().GetVelocity(t, para);
+                }
+            } else {
+                qDebug("error3");
+            }
+        } else {
+            qDebug("error2");
+        }
+    } else {
+        qDebug("error1");
+    }
+}
+
+void MainWindow::TestTime()
+{
+    int number = 0;
+    double q = 0.05;
+    double jmax = 80.0;
+    VectorXd para;
+    double time = 0.0;
+    int ret;
+    for (int var = 0; var < 20; var++) {
+        double v_0 = 0.1;
+        for (int m = 0; m < 20; m++) {
+            double v_1 = 0.1;
+            for(int i = 0; i < 40; i++) {
+                double vmax = 0.1;
+                for(int j = 0; j < 20; j++) {
+                    double amax = 0.2;
+                    for(int k = 0; k < 30; k++) {
+                        ret = GetVelPlanInstance().SetVelocityPlan(q, v_0, v_1, vmax, amax, jmax, para, time);
+                        if (ret == 0) {
+                            qDebug()<<number<<"time"<<time;
+                            number ++;
+                        } else if (ret == -1) {
+                            int a = 0;
+                            a = 1;
+                        }
+                        amax += 0.2;
+                    }
+                    vmax += 0.1;
+                }
+                v_1 += 0.1;
+            }
+            v_0 += 0.1;
+        }
+        q += 0.05;
+    }
 }
 
 void MainWindow::TestBSpline()
@@ -223,17 +292,15 @@ void MainWindow::on_Test_clicked()
     // TestTimeCalculation();
     // TestInterpolationCalculation();
     // TestMovep();
-    struct timeval tptime1,tptime2;
-    gettimeofday(&tptime1,NULL);
-    TestBSpline();
-    gettimeofday(&tptime2,NULL);
-    float timeuse = (1000000*(tptime2.tv_sec-tptime1.tv_sec) + tptime2.tv_usec-tptime1.tv_usec);
-    qDebug()<<"time"<<timeuse;
+
+    // struct timeval tptime1,tptime2;
+    // gettimeofday(&tptime1,NULL);
+    // TestBSpline();
+    // TestTime();
+    TestVelocity();
+    // gettimeofday(&tptime2,NULL);
+    // float timeuse = (1000000*(tptime2.tv_sec-tptime1.tv_sec) + tptime2.tv_usec-tptime1.tv_usec);
+    // qDebug()<<"time"<<timeuse;
 }
 
-
-void MainWindow::on_Test_2_clicked()
-{
-
-}
 
