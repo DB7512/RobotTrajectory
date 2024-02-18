@@ -96,7 +96,7 @@ VectorXd BSplineCurve::controlPointDerivative(int i, int p, int k, vector<double
  * @param U     节点矢量
  * @return
  */
-VectorXd BSplineCurve::curveDerivative(int p, int u, int k, vector<double> U)
+VectorXd BSplineCurve::CurveDerivative(int p, int u, int k, vector<double> U)
 {
     VectorXd sum = Vector3d::Zero(3);
     vector<double> tempU;

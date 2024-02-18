@@ -7,28 +7,6 @@
 using namespace std;
 using namespace Eigen;
 
-struct Parameters {
-    float Ta;//0
-    float Tv;//1
-    float Td;//2
-    float Tj1;//3
-    float Tj2;//4
-    float q0;//5
-    float q1;//6
-    float v0;//7
-    float v1;//8
-    float vlim;//9
-    float amax;//10
-    float amin;//11
-    float alima;//12
-    float alimd;//13
-    float jmax;//14
-    float jmin; //15
-    Parameters() {
-        memset(this,0,sizeof(Parameters));
-    }
-};
-
 typedef enum {
     TraZeroTra = 0,
     TriZeroTra,
@@ -47,7 +25,7 @@ typedef enum {
     NoneTra,
     NoneTri,
     Zero,
-}AccelerationType;
+}AccelerationType;  // 由velocityplanning中的velocitytype取代
 
 typedef enum {
     Position = 0,
@@ -56,64 +34,69 @@ typedef enum {
 
 typedef enum {
     None = 0,
+    Line,       // 重新定义为直线
+    Arc,        // 过渡圆弧 // 重新定义为圆弧
+    Circular,   // 圆弧   // 重新定义为圆
+    LineArc,   // 重新定义为过渡圆弧
+    Curve,      // 重新定义为曲线
+}PathType;  // 分段路径分类
+
+typedef enum {
+    None = 0,
     Line,       //直线
-    Arc,        //过渡圆弧
-    Circular,   //圆弧
-    Line2arc,
-}PathType;
+    Arc,        //圆弧
+}PointType; // 原始路点分类
+
+typedef enum {
+    Fixed,
+    Unfixed,
+}ArcType; // 原始路点分类
 
 typedef enum {
     ConnectwithStart,
     ConnectwithEnd,
-}ConnectionType;
+}ConnectionType;    // 与分段路径的起点还是终点连接
 
 typedef struct _PointInformation {
-    Vector3d point; //位置
-    Vector4d pose; //姿态四元数
-    double velocity; //速度
-    double acceleration; //加速度
-    double jerk;
-    double maxDeviation; //最大误差
-    double maxVelocity;
-    double maxAcceleration;
-    double maxJerk;
-    double radius;
-    PathType pathType; //该路点所属路径类型
+    Vector3d point; // 位置
+    Vector4d pose; // 姿态四元数
+    double velocity; // 速度
+    double acceleration; // 加速度
+    double jerk;    // 加加速度
+    double maxDeviation; // 最大误差
+    double maxVelocity; // 最大速度
+    double maxAcceleration; // 最大加速度
+    double maxJerk; // 最大加加速度
+    // double radius;  // 圆弧半径 !!!可省略
+    double r;   // 交融半径
+    // PointType pointType; // 该路点所属路径类型
     _PointInformation() {
         memset(this,0,sizeof(_PointInformation));
-        maxJerk = 80;
-        pathType = None;
+        maxJerk = 80.0;
+        // pointType = None;
     }
 }PointInformation;
 
 typedef struct _PathInformation {
-    PointInformation startpoint;
-    PointInformation endpoint;
-    PointInformation intermediatepoint; //中间点
-    Vector3d waypoint; //路径点
-    double maxVelocity;
-    double maxAcceleration;
-    double maxJerk;
-    //double startVelocity;
-    //double endVelocity;
-    PathType pathType; //路径类型
-    double radius; //半径
-    double theta; //圆心角
-    double displacement; //位移
-    double arclength; //弧长
-    Vector3d center; //圆心
-    VectorXd constraints = VectorXd::Zero(16); //16个参数的约束
-    AccelerationType accelerationType; //加速度类型
-    TrajectoryType trajectoryType; //姿态还是位移
-//    vector<vector<double> > TrajectoryInterpolation;
-//    vector<vector<double> > TrajectoryVelocity;
-//    vector<vector<double> > TrajectoryAcceleration;
-//    _TrajectoryInformation() {
-////        memset(this,0,sizeof(_TrajectoryInformation));
-//        constraints = VectorXd::Zero(16);
-//        maxJerk = 80;
-//        pathType = None;
-//    }
+    PathType pathType; // 路径类型
+    ArcType arcType;    // 圆弧姿态规划类型
+    PointInformation startpoint;    // 路径起点
+    PointInformation endpoint;  // 路径终点
+    PointInformation intermediatepoint; // 圆弧路径中间点
+    vector<PointInformation> controlpoints; // 曲线控制点
+    Vector3d waypoint; // 预留使用
+    double maxVelocity; // 最大速度
+    double maxAcceleration; // 最大加速度
+    double maxJerk; // 最大加加速度
+    double radius; // 半径
+    double theta; // 圆心角
+    double displacement; // 位移
+    double arclength; // 弧长
+    Vector3d center; // 圆心
+    Vector3d normal; // 圆弧旋转轴
+    VectorXd paras = VectorXd::Zero(16); // 16个参数的约束
+    AccelerationType accelerationType; // 加速度类型
+    TrajectoryType trajectoryType; // 姿态还是位移
 }PathInformation;
 
 class TrajectoryPlanning : public QObject
@@ -158,17 +141,53 @@ public:
     void SetCricularPathSegment(PathInformation &path, PointInformation startpoint, PointInformation endpoint, PointInformation middlepoint, Vector3d center, double r, double theta);
     void SetArcPathSegment(PathInformation &path, PointInformation intermediatepoint, Vector3d arcstart, Vector3d arcend, Vector3d arccenter, double radius, double theta);
 
-    void ArcParameterCalculate(Vector3d p1, Vector3d p2, Vector3d p3, Vector3d &center, double radius, Vector3d normal, double theta);
+
+    // 计算圆弧的参数，包括圆心、半径、旋转轴、旋转角
+    void GetArcParameter(Vector3d p1, Vector3d p2, Vector3d p3,
+                               Vector3d &center, double &radius, Vector3d &normal, double &theta);
+    void GetArcParameter(PathInformation &arc);
+    // 线段与以端点为圆心，r为半径的圆的交点
     Vector3d LineIntersectCricular(Vector3d startpoint, Vector3d endpoint, double radius, ConnectionType type);
-    Vector3d CricularIntersectCricular(Vector3d center, double circularradius, Vector3d normal, Vector3d intersectpoint, double radius, ConnectionType type);
-    Vector3d LineTangent(Vector3d startpoint, Vector3d endpoint, ConnectionType type);
+    Vector3d LineIntersectCricular(PathInformation line, ConnectionType type);
+    // 圆弧与以圆弧端点为圆心，r为半径的圆的交点
+    Vector3d CricularIntersectCricular(Vector3d center, double circularradius, Vector3d normal,
+                                       Vector3d intersectpoint, double radius, ConnectionType type);
+    Vector3d CricularIntersectCricular(PathInformation arc, ConnectionType type);
+    // 线段的单位切向量
+    Vector3d GetLineTangent(Vector3d startpoint, Vector3d endpoint, ConnectionType type);
+    Vector3d GetLineTangent(PathInformation line, ConnectionType type);
+    // 圆弧端点的单位切向量（指向远离圆弧的方向）
+    Vector3d GetArcTangent(Vector3d startpoint, Vector3d endpoint, Vector3d center,
+                           Vector3d normal, ConnectionType type);
+    Vector3d GetArcTangent(PathInformation arc, ConnectionType type);
+    // 计算B样条曲线的控制点
+    vector<PointInformation> GetControlPoints(PathInformation path1, PathInformation path2);
+    // 计算曲线参数（弧长等）
+    void GetCurveParameter(PathInformation &path);
 
 
+    // 获取movep路点信息
+    PointInformation GetPointInformation(Vector3d point, Vector4d pose,
+                                         double v, double a, double vm, double am, double jm,
+                                         double r, PointType type);
+    vector<PointInformation> m_movePoint;   // 用于存放路点信息
+    // 将路点信息转换成没有交融的路径信息
+    int GetPathInformation(vector<PointInformation> waypoints, vector<PathInformation> pathes);
+
+    void MoveP(vector<PathInformation> path);
+    // 1.将原始路径转换成交融路径
+    int SetPathSegment(vector<PathInformation> pathf, vector<PathInformation> patht);
+    vector<PathInformation> m_movePath; // 2.存放路径信息
+    // 设置原始直线信息
+    PathInformation SetLinePath(PointInformation pf, PointInformation pt);
+    // 设置原始圆弧信息
+    PathInformation SetArcPath(PointInformation pf, PointInformation pi, PointInformation pt);
+    // 设置曲线信息，约束沿用前一路径的约束信息
+    void SetCurvePath(vector<PointInformation> ctrlpoint, PathInformation &path);
+    // 路径衔接
+    void GetPathSegment(PathInformation path1, PathInformation &path2, vector<PathInformation> &path);
 
 
-
-    void LineIntersectSphere(Vector3d startpoint, Vector3d endpoint, Vector3d node, double radius);
-    void SolvingQuadratics(double a, double b, double c, vector<double> &t);
 signals:
 
 public:

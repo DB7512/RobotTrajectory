@@ -18,7 +18,7 @@ public:
 
     double basisFunction(int i, int p, double u, vector<double> U);
     VectorXd controlPointDerivative(int i, int p, int k, vector<double> U);
-    VectorXd curveDerivative(int p, int u, int k, vector<double> U);
+    VectorXd CurveDerivative(int p, int u, int k, vector<double> U);
     double Simpson(int p, double a, double b, vector<double> U);
     double adaptiveSimpson(int p, double a, double b, double eps);
     double calculateCurveLength(double eps);
