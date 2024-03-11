@@ -6,7 +6,7 @@
 #include "cmath"
 #include <algorithm>
 #include <ctime>
-
+#include "velocityplanning.h"
 
 TrajectoryPlanning::TrajectoryPlanning(QObject *parent)
     : QObject{parent}
@@ -76,13 +76,13 @@ bool TrajectoryPlanning::LinePlanning(int peroid, PointInformation point_start, 
         QTextStream stream(&data);
         stream<<number<<" "<<lambda[i]<<" "<<q_dq[0]<<" "<<q_dq[1]<<"\n";
         data.close();
-        //        qDebug()<<lambda[i]<<q_dq[1];
-        //        interpolation_point[0] = pose_start[0] + detla_x * lambda[i];
-        //        interpolation_point[1] = pose_start[1] + detla_y * lambda[i];
-        //        interpolation_point[2] = pose_start[2] + detla_z * lambda[i];
-        //        trajectory_point.push_back(interpolation_point);
-        //        trajectory_inf.push_back(infpoint);
-        //        qDebug()<<interpolation_point[0];
+        // qDebug()<<lambda[i]<<q_dq[1];
+        // interpolation_point[0] = pose_start[0] + detla_x * lambda[i];
+        // interpolation_point[1] = pose_start[1] + detla_y * lambda[i];
+        // interpolation_point[2] = pose_start[2] + detla_z * lambda[i];
+        // trajectory_point.push_back(interpolation_point);
+        // trajectory_inf.push_back(infpoint);
+        // qDebug()<<interpolation_point[0];
     }
     return true;
 }
@@ -1696,10 +1696,10 @@ void TrajectoryPlanning::Movep(vector<PointInformation> waypoints, vector<PathIn
 {
     vector<PathInformation> temppath;
     CompoundTrajectory(waypoints, temppath);
-//    for (int i = 0; i < temppath.size(); i++) {
-//        qDebug()<<temppath[i].startpoint.point[0]<<temppath[i].startpoint.point[1]<<temppath[i].startpoint.point[2];
-//        qDebug()<<temppath[i].endpoint.point[0]<<temppath[i].endpoint.point[1]<<temppath[i].endpoint.point[2];
-//    }
+    //    for (int i = 0; i < temppath.size(); i++) {
+    //        qDebug()<<temppath[i].startpoint.point[0]<<temppath[i].startpoint.point[1]<<temppath[i].startpoint.point[2];
+    //        qDebug()<<temppath[i].endpoint.point[0]<<temppath[i].endpoint.point[1]<<temppath[i].endpoint.point[2];
+    //    }
     //    for (int i = 0; i < waypoints.size(); i++) {
     //        qDebug()<<waypoints[i].point[0]<<waypoints[i].point[1]<<waypoints[i].point[2];
     //    }
@@ -2497,23 +2497,26 @@ void TrajectoryPlanning::GetArcParameter(
     double k_21 = p2(0) - p1(0);
     double k_22 = p2(1) - p1(1);
     double k_23 = p2(2) - p1(2);
-    double k_24 = -((pow(p2(0),2) - pow(p1(0),2)) + (pow(p2(1),2) - pow(p1(1),2)) + (pow(p2(2), 2) - pow(p1(2),2))) / 2;
+    double k_24 = -((pow(p2(0),2) - pow(p1(0),2)) + (pow(p2(1),2) - pow(p1(1),2))
+                    + (pow(p2(2), 2) - pow(p1(2),2))) / 2;
     // 过p2 p3的中点并且和 p2p3 垂直的平面方程
     double k_31 = p3(0) - p2(0);
     double k_32 = p3(1) - p2(1);
     double k_33 = p3(2) - p2(2);
-    double k_34 = -((pow(p3(0),2) - pow(p2(0),2)) + (pow(p3(1),2) - pow(p2(1),2)) + (pow(p3(2),2) - pow(p2(2),2))) / 2;
+    double k_34 = -((pow(p3(0),2) - pow(p2(0),2)) + (pow(p3(1),2) - pow(p2(1),2))
+                    + (pow(p3(2),2) - pow(p2(2),2))) / 2;
     // 圆心肯定在这三个平面上面。利用点法式方程求得圆心
     Matrix3d k_123 = Matrix3d::Zero();
     k_123 << k_11, k_12, k_13,
-             k_21, k_22, k_23,
-             k_31, k_32, k_33;
+        k_21, k_22, k_23,
+        k_31, k_32, k_33;
     Vector3d k_4 = Vector3d::Zero();
     k_4<< -k_14, -k_24, -k_34;
     // 计算圆心
     center = k_123.inverse() * k_4;
     // 计算半径
-    radius = sqrt(pow((center(0) - p1(0)),2) + pow((center(1) - p1(1)),2) + pow((center(2) - p1(2)),2));
+    radius = sqrt(pow((center(0) - p1(0)),2) + pow((center(1) - p1(1)),2)
+                  + pow((center(2) - p1(2)),2));
     // 计算圆心角及圆弧法向量
     Vector3d center2p1 = p1 - center;
     Vector3d center2p2 = p2 - center;
@@ -2536,6 +2539,11 @@ void TrajectoryPlanning::GetArcParameter(
     }
 }
 
+/**
+ * @brief TrajectoryPlanning::GetArcParameter
+ * 计算圆弧的圆心、半径、圆心角、法向量和弧长
+ * @param arc
+ */
 void TrajectoryPlanning::GetArcParameter(PathInformation &arc)
 {
     Vector3d p1 = arc.startpoint.point;
@@ -2550,12 +2558,14 @@ void TrajectoryPlanning::GetArcParameter(PathInformation &arc)
     double k_21 = p2(0) - p1(0);
     double k_22 = p2(1) - p1(1);
     double k_23 = p2(2) - p1(2);
-    double k_24 = -((pow(p2(0),2) - pow(p1(0),2)) + (pow(p2(1),2) - pow(p1(1),2)) + (pow(p2(2), 2) - pow(p1(2),2))) / 2.0;
+    double k_24 = -((pow(p2(0),2) - pow(p1(0),2)) + (pow(p2(1),2) - pow(p1(1),2))
+                    + (pow(p2(2), 2) - pow(p1(2),2))) / 2.0;
     // 过p2 p3的中点并且和 p2p3 垂直的平面方程
     double k_31 = p3(0) - p2(0);
     double k_32 = p3(1) - p2(1);
     double k_33 = p3(2) - p2(2);
-    double k_34 = -((pow(p3(0),2) - pow(p2(0),2)) + (pow(p3(1),2) - pow(p2(1),2)) + (pow(p3(2),2) - pow(p2(2),2))) / 2.0;
+    double k_34 = -((pow(p3(0),2) - pow(p2(0),2)) + (pow(p3(1),2) - pow(p2(1),2))
+                    + (pow(p3(2),2) - pow(p2(2),2))) / 2.0;
     // 圆心肯定在这三个平面上面。利用点法式方程求得圆心
     Matrix3d k_123 = Matrix3d::Zero();
     k_123 << k_11, k_12, k_13,
@@ -2566,7 +2576,8 @@ void TrajectoryPlanning::GetArcParameter(PathInformation &arc)
     // 计算圆心
     arc.center = k_123.inverse() * k_4;
     // 计算半径
-    arc.radius = sqrt(pow((center(0) - p1(0)),2) + pow((center(1) - p1(1)),2) + pow((center(2) - p1(2)),2));
+    arc.radius = sqrt(pow((arc.center(0) - p1(0)),2) + pow((arc.center(1) - p1(1)),2)
+                      + pow((arc.center(2) - p1(2)),2));
     // 计算圆心角及圆弧法向量
     Vector3d center2p1 = p1 - arc.center;
     Vector3d center2p2 = p2 - arc.center;
@@ -2587,6 +2598,8 @@ void TrajectoryPlanning::GetArcParameter(PathInformation &arc)
         arc.theta = 2*M_PI - theta2;
         arc.normal = normal1.normalized();
     }
+    // 计算弧长
+    arc.displacement = arc.theta * arc.radius;
 }
 /**
  * @brief TrajectoryPlanning::LineIntersectCricular 线段与以端点为圆心，r为半径的圆的交点
@@ -2649,7 +2662,7 @@ Vector3d TrajectoryPlanning::CricularIntersectCricular(
     } else if(type == ConnectwithStart){
         rotationmatrix = rotationvectorstart.matrix();
     }
-//    rotationmatrix = rotationvector.toRotationMatrix();
+    //    rotationmatrix = rotationvector.toRotationMatrix();
     return rotationmatrix * center2intersect + center;      //圆弧与圆的交点
 }
 
@@ -2739,7 +2752,7 @@ Vector3d TrajectoryPlanning::GetArcTangent(PathInformation arc, ConnectionType t
         tangent = arc.normal.cross(center2end);
     } else if(type == ConnectwithStart){
         Vector3d center2start = arc.startpoint.point - arc.center;
-        tangent = center2start.cross(normal);
+        tangent = center2start.cross(arc.normal);
     }
     return tangent.normalized();
 }
@@ -2802,6 +2815,18 @@ void TrajectoryPlanning::GetCurveParameter(PathInformation &path)
     vector<Vector3d> ctrlPoint;
 }
 
+void TrajectoryPlanning::DealInformation()
+{
+    PointInformation pointInf;
+    for (int i = 0; i < total; ++i) {
+        pointInf = SetPointInformation(point, pose, v, a, vm, am, jm, r, type);
+        m_movePoint.push_back(pointInf);
+    }
+    vector<PathInformation> oriPath;
+    GetPathInformation(m_movePoint, oriPath);
+    MoveP(oriPath);
+}
+
 /**
  * @brief TrajectoryPlanning::GetPointInformation   存放movep路点信息
  * @param point
@@ -2815,7 +2840,7 @@ void TrajectoryPlanning::GetCurveParameter(PathInformation &path)
  * @param type
  * @return
  */
-PointInformation TrajectoryPlanning::GetPointInformation(
+PointInformation TrajectoryPlanning::SetPointInformation(
     Vector3d point, Vector4d pose,
     double v, double a, double vm, double am, double jm,
     double r, PointType type)
@@ -2836,18 +2861,20 @@ PointInformation TrajectoryPlanning::GetPointInformation(
 
 /**
  * @brief TrajectoryPlanning::GetPointInformation 将路点信息转换成没有交融的路径信息
+ * 圆弧只提供两个圆弧类型的路点（中间点和终点），以前一个直线类型路点作为圆弧起点。
  * @param waypoints
  * @param pathes
  */
 int TrajectoryPlanning::GetPathInformation(vector<PointInformation> waypoints, vector<PathInformation> pathes)
 {
-    if (waypoints.size() < 1) return -1;
+    if (waypoints.size() < 2) return -1;
     vector<PointInformation>::const_iterator point1 = waypoints.begin();
     vector<PointInformation>::const_iterator point2 = point1;
     point2++;
     vector<PointInformation>::const_iterator point3;
     PointInformation startPoint = *point1;
     PathInformation path;
+    PointInformation arcStartPoint;
     while(point2 != waypoints.end() - 1) { //vector.end()指向最后一个元素的下一个位置，访问最后一个元素应该为vector.end()-1
         point3 = point2;
         point3 ++;
@@ -2858,32 +2885,56 @@ int TrajectoryPlanning::GetPathInformation(vector<PointInformation> waypoints, v
             startPoint = *point2;
             point2 = point3;
         } else if (startPoint.pointType == Arc) {   // 圆弧类型点
+            arcStartPoint = startPoint; //第一个Arc类型路点是连续圆弧的共同起点
             if (nextPoint.pointType == Line) {  // 下一个点是直线点
                 path = SetLinePath(startPoint, nextPoint);
                 pathes.push_back(path);
                 startPoint = *point2;
                 point2 = point3;
             } else if (nextPoint.pointType == Arc) {    // 下一个点是圆弧点
-                PointInformation lastPoint = *point3;
-                path = SetArcPath(startPoint, nextPoint, lastPoint);
-                pathes.push_back(path);
-                startPoint = *point3;
-                if (point3 != waypoints.end() - 1) {    // point3不是最后一个点
-                    if (point3 != waypoints.end() - 2) {    // point3不是倒数第二个点
-                        startPoint = *point3;
-                        point3 ++;
-                        point2 = point3;
-                    } else {    // point3是倒数第二个点
-                        startPoint = *point3;
-                        point3 ++;
-                        nextPoint = *point3;
-                        path = SetLinePath(startPoint, nextPoint);
-                        pathes.push_back(path);
-                        return 0;
+                // 判断有几段连续圆弧
+                vector<PointInformation>::const_iterator tPoint3 = point3;
+                int arcCount = 0;
+                int pointCount = 1; // 包含nextPoint
+                PointInformation nPoint = *tPoint3;
+                while (nPoint.pointType == Arc) {
+                    if (tPoint3 != waypoints.end() - 1) {   // 不是最后一个点
+                        pointCount++;
+                        tPoint3++;
+                        nPoint = *tPoint3;
+                    } else {    // 是最后一个点
+                        pointCount++;   // 计数退出
+                        break;
                     }
-                } else {    // point3是最后一个点
-                    return 0;
                 }
+                // 圆弧段数量
+                arcCount = (int) pointCount / 2.0;
+                // 处理圆弧段，以第一个圆弧类型路点为公共起点，即arcStartPoint
+                PointInformation endPoint = *point3;    // 第一个圆弧的终点，经过点为nextPoint
+                // 保存第一段圆弧
+                path = SetArcPath(arcStartPoint, nextPoint, endPoint);
+                pathes.push_back(path);
+                if (arcCount > 1) {
+                    // 处理arcCount - 1段圆弧路径
+                    for (int i = 1; i < arcCount; ++i) {
+                        if (point3 != waypoints.end() - 1) {
+                            // 圆弧终点不是最后一个路点，取后两个路点
+                            point3++;
+                            nextPoint = *point3;
+                            point3++;
+                            endPoint = *point3;
+                            // 保存圆弧，起点arcCount，经过点nextPoint，终点endPoint
+                            path = SetArcPath(arcStartPoint, nextPoint, endPoint);
+                            pathes.push_back(path);
+                        } else {    // 圆弧终点是最后一个点，直接退出
+                            return 0;
+                        }
+                    }
+                }
+                // 以圆弧终点为起点，继续分段
+                startPoint = *point3;
+                point3 ++;
+                point2 = point3;
             }
         }
     }
@@ -2894,7 +2945,11 @@ int TrajectoryPlanning::GetPathInformation(vector<PointInformation> waypoints, v
     return 0;
 }
 
-void TrajectoryPlanning::MoveP(vector<PathInformation> path)
+/**
+ * @brief TrajectoryPlanning::MovePPath 计算movep下路点组成的路径
+ * @param path
+ */
+void TrajectoryPlanning::MovePPath(vector<PathInformation> path)
 {
     // 交融后的路径放入m_movePath
     SetPathSegment(path, m_movePath);
@@ -2908,8 +2963,17 @@ void TrajectoryPlanning::MoveP(vector<PathInformation> path)
  */
 int TrajectoryPlanning::SetPathSegment(vector<PathInformation> pathf, vector<PathInformation> patht)
 {
-    for (int i = 0; i < pathf.size() - 1; ++i) {
+    int num = pathf.size();
+    // 添加n-1段过渡曲线
+    for (int i = 0; i < num - 1; ++i) {
         GetPathSegment(pathf[i], pathf[i+1], patht);
+    }
+    // 存放最后一个路径
+    patht.push_back(pathf[num-1]);
+    if(patht.size() != (int)(2 * num - 1)) {
+        return -1;
+    } else {
+        return 0;
     }
 }
 
@@ -2952,7 +3016,7 @@ PathInformation TrajectoryPlanning::SetArcPath(PointInformation pf, PointInforma
     path.maxJerk = pt.maxJerk;
     GetArcParameter(path.startpoint.point, path.intermediatepoint.point, path.endpoint.point,
                     path.center, path.radius, path.normal, path.theta);
-    path.arclength = path.radius * path.theta;
+    path.displacement = path.radius * path.theta;
     return path;
 }
 
@@ -2977,7 +3041,7 @@ void TrajectoryPlanning::SetCurvePath(vector<PointInformation> ctrlpoint, PathIn
 void TrajectoryPlanning::GetPathSegment(PathInformation path1, PathInformation &path2,
                                         vector<PathInformation> &path)
 {
-    // 存放计算交融后放入容器的路径
+    // 存放计算交融后的路径
     PathInformation tempPath = path1;
     // 计算曲线4个控制点（包含点信息）
     vector<PointInformation> ctrlPoint = GetControlPoints(path1, path2);
@@ -2989,4 +3053,64 @@ void TrajectoryPlanning::GetPathSegment(PathInformation path1, PathInformation &
     path.push_back(tempPath);
     // 将曲线的最后一个控制点信息作为下一路径的起点信息
     path2.startpoint = tempPath.controlpoints[3];
+}
+
+void TrajectoryPlanning::MovePTrajectory(vector<PathInformation> &path)
+{
+    // 对添加交融曲线的路径进行速度规划
+    int ret = SetTrajectoryInterpolation(m_movePath);
+    if (ret < 0) {
+        qDebug("path number error!");
+    } else {
+
+    }
+}
+
+int TrajectoryPlanning::SetTrajectoryInterpolation(vector<PathInformation> &path)
+{
+    int num = path.size();
+    if (num < 1) return -1;
+    PathInformation tPath;
+    double time = 0.0;
+    for(int i = 0; i < num; ++i) {
+        tPath = path[i];
+        // 计算路径位移
+        GetPathDisplacement(tPath);
+        // 进行速度规划
+        GetVelPlanInstance().SetVelocityPlan(tPath.displacement, tPath.startpoint.velocity, tPath.endpoint.velocity,
+                                             tPath.maxVelocity, tPath.maxAcceleration, tPath.maxJerk, tPath.paras, time);
+        // 根据para中的time判断速度规划类型
+        GetVelPlanInstance().GetVelocityType(tPath.paras);
+        // 根据给定的周期对速度规划进行周期化处理
+        GetVelPlanInstance().CorrentParas(tPath.paras, 100);
+    }
+    // 判断路径的始末速度是否改变
+    for (int i = 0; i < num; ++i) {
+        if (i == 0) {
+
+        }
+        if (path[i].paras(6) != path[i].startpoint.velocity) {
+
+        }
+    }
+
+}
+
+/**
+ * @brief TrajectoryPlanning::GetPathDisplacement   计算路径的位移
+ * @param path
+ */
+void TrajectoryPlanning::GetPathDisplacement(PathInformation &path)
+{
+    if (path.pathType == Line) {
+        // 计算直线两点距离
+        path.displacement = (path.endpoint.point - path.startpoint.point).norm();
+    } else if (path.pathType == Arc) {
+        // 计算圆弧圆心、半径、圆心角、旋转轴、弧长
+        GetArcParameter(path);
+    } else if (path.pathType == Curve) {
+
+    } else if (path.pathType == Circular) {
+
+    }
 }

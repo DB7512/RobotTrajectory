@@ -69,12 +69,21 @@ class VelocityPlanning : public TrajectoryPlanning
 {
 
 public:
-    int SetVelocityPlan(double l, double &vs, double &ve, double &vmax, double amax, double jmax, VectorXd &para, double &time);
+    // 速度规划，计算时间，处理三种类型
+    int SetVelocityPlan(double l, double &vs, double &ve,
+                        double &vmax, double amax, double jmax,
+                        VectorXd &para, double &time);
+    // xx给定time和l，进行速度规划，算法不完善，目前没有找到可以同时满足l和time的方法
     int TimePLan(double l, double &vs, double &ve, double &vmax, double amax, double jmax, VectorXd &para, double time);
+    // xx时间圆整规划，仅可以处理vm > max{vs,ve}情况
     int TrajectoryTime(double &time, float Q, float v_0, float v_1, float vmax, float amax, float jmax, VectorXd &para);
-    int GetVelocityType(VectorXd para, int peroid);
+    // 速度规划类型判断
+    int GetVelocityType(VectorXd para);
+    // 时间周期化之后修正速度规划参数
     int CorrentParas(VectorXd &para, int peroid);
+    // 获取t时刻的位置
     double GetPosition(double t, VectorXd para);
+    // 获取t时刻的速度
     double GetVelocity(double t, VectorXd para);
 
 

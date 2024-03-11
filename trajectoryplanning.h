@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <eigen-3.4.0/Eigen/Dense>
+#include "velocityplanning.h"
 
 using namespace std;
 using namespace Eigen;
@@ -69,7 +70,7 @@ typedef struct _PointInformation {
     double maxJerk; // 最大加加速度
     // double radius;  // 圆弧半径 !!!可省略
     double r;   // 交融半径
-    // PointType pointType; // 该路点所属路径类型
+    PointType pointType; // 该路点所属路径类型
     _PointInformation() {
         memset(this,0,sizeof(_PointInformation));
         maxJerk = 80.0;
@@ -90,15 +91,19 @@ typedef struct _PathInformation {
     double maxJerk; // 最大加加速度
     double radius; // 半径
     double theta; // 圆心角
-    double displacement; // 位移
-    double arclength; // 弧长
+    double displacement; // 位移(直线距离、圆弧弧长、曲线弧长都用该参数表示)
+    // double arclength; // 弧长
     Vector3d center; // 圆心
     Vector3d normal; // 圆弧旋转轴
     VectorXd paras = VectorXd::Zero(16); // 16个参数的约束
-    AccelerationType accelerationType; // 加速度类型
-    TrajectoryType trajectoryType; // 姿态还是位移
+    VelocityType velocityType; // 加速度类型
+    // TrajectoryType trajectoryType; // 姿态还是位移
 }PathInformation;
 
+/**
+ * @brief The TrajectoryPlanning class
+ * 2024/3/8 圆弧起点定义为Arc类型
+ */
 class TrajectoryPlanning : public QObject
 {
     Q_OBJECT
@@ -165,16 +170,16 @@ public:
     // 计算曲线参数（弧长等）
     void GetCurveParameter(PathInformation &path);
 
-
+    void DealInformation();
     // 获取movep路点信息
-    PointInformation GetPointInformation(Vector3d point, Vector4d pose,
+    PointInformation SetPointInformation(Vector3d point, Vector4d pose,
                                          double v, double a, double vm, double am, double jm,
                                          double r, PointType type);
     vector<PointInformation> m_movePoint;   // 用于存放路点信息
     // 将路点信息转换成没有交融的路径信息
     int GetPathInformation(vector<PointInformation> waypoints, vector<PathInformation> pathes);
 
-    void MoveP(vector<PathInformation> path);
+    void MovePPath(vector<PathInformation> path);
     // 1.将原始路径转换成交融路径
     int SetPathSegment(vector<PathInformation> pathf, vector<PathInformation> patht);
     vector<PathInformation> m_movePath; // 2.存放路径信息
@@ -186,6 +191,13 @@ public:
     void SetCurvePath(vector<PointInformation> ctrlpoint, PathInformation &path);
     // 路径衔接
     void GetPathSegment(PathInformation path1, PathInformation &path2, vector<PathInformation> &path);
+    void MovePTrajectory(vector<PathInformation> &path);
+    // 3.轨迹插值，进行速度规划，包括前瞻
+    int SetTrajectoryInterpolation(vector<PathInformation> &path);
+    // 计算路径位移(line,arc,curve)
+    void GetPathDisplacement(PathInformation &path);
+
+
 
 
 signals:

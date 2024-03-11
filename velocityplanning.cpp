@@ -4,6 +4,10 @@
 
 /**
  * @brief VelocityPlanning::PositionPLan
+ * 速度规划，计算时间，可以处理
+ *  1.vm > max{vs,ve};
+ *  2.vm < min{vs,ve};
+ *  3.min{vs,ve} < vm < max{vs,ve}
  * @param l
  * @param vs
  * @param ve
@@ -330,6 +334,18 @@ int VelocityPlanning::SetVelocityPlan(double l, double &vs, double &ve,
     }
 }
 
+/**
+ * @brief VelocityPlanning::TimePLan    给定time和l，进行速度规划，算法不完善，目前没有找到可以同时满足l和time的方法
+ * @param l
+ * @param vs
+ * @param ve
+ * @param vmax
+ * @param amax
+ * @param jmax
+ * @param para
+ * @param time
+ * @return
+ */
 int VelocityPlanning::TimePLan(double l, double &vs, double &ve, double &vmax, double amax, double jmax, VectorXd &para, double time)
 {
     double vavg = l / time;
@@ -374,6 +390,18 @@ int VelocityPlanning::TimePLan(double l, double &vs, double &ve, double &vmax, d
     }
 }
 
+/**
+ * @brief VelocityPlanning::TrajectoryTime  时间圆整规划，仅可以处理vm > max{vs,ve}情况
+ * @param time
+ * @param l
+ * @param vs
+ * @param ve
+ * @param vmax
+ * @param amax
+ * @param jmax
+ * @param para
+ * @return
+ */
 int VelocityPlanning::TrajectoryTime(double &time, float l, float vs, float ve, float vmax, float amax, float jmax, VectorXd &para)
 {
     //judge whether the minimun diaplacement is satisfied
@@ -563,7 +591,13 @@ int VelocityPlanning::TrajectoryTime(double &time, float l, float vs, float ve, 
     return 1;
 }
 
-int VelocityPlanning::GetVelocityType(VectorXd para, int peroid)
+/**
+ * @brief VelocityPlanning::GetVelocityType 速度规划类型判断
+ * @param para
+ * @param peroid
+ * @return
+ */
+int VelocityPlanning::GetVelocityType(VectorXd para)
 {
     double ta, tv, td, tja, tjd;
     double l, vs, ve, vmax, vlim;
@@ -781,6 +815,12 @@ int VelocityPlanning::GetVelocityType(VectorXd para, int peroid)
     return 0;
 }
 
+/**
+ * @brief VelocityPlanning::CorrentParas    时间周期化之后修正速度规划参数
+ * @param para
+ * @param peroid
+ * @return
+ */
 int VelocityPlanning::CorrentParas(VectorXd &para, int peroid)
 {
     double ta, tv, td, tja, tjd;
@@ -1027,7 +1067,13 @@ int VelocityPlanning::CorrentParas(VectorXd &para, int peroid)
     return 0;
 }
 
-double VelocityPlanning::GetPosition(double t, VectorXd para)
+/**
+ * @brief VelocityPlanning::GetPosition 获取t时刻的位置
+ * @param t
+ * @param para
+ * @return
+ */
+double VelocityPlanning:: GetPosition(double t, VectorXd para)
 {
     double ta, tv, td, tja, tjd;
     double l, vs, ve, vmax, vlim;
@@ -1087,6 +1133,12 @@ double VelocityPlanning::GetPosition(double t, VectorXd para)
     }
 }
 
+/**
+ * @brief VelocityPlanning::GetVelocity 获取t时刻的速度
+ * @param t
+ * @param para
+ * @return
+ */
 double VelocityPlanning::GetVelocity(double t, VectorXd para)
 {
     double ta, tv, td, tja, tjd;
